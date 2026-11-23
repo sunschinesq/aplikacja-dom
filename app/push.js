@@ -33,7 +33,8 @@ export async function enablePush() {
   if (perm !== 'granted') throw new Error('Nie zezwolono na powiadomienia. Zmienisz to w Ustawieniach iPhone’a → Powiadomienia → Nasz dom.');
   if (!getClient() || !getHouse()) throw new Error('Najpierw połącz synchronizację.');
   const reg = await navigator.serviceWorker.ready;
-  const { key } = await fn({ action: 'key' });
+  const { key } = await fn({ action: 'key' }) || {};
+  if (!key) throw new Error('Funkcja „notify” w Supabase ma jeszcze przykładowy kod („Hello”). Wklej kod z repozytorium i kliknij Deploy.');
   let sub = await reg.pushManager.getSubscription();
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
   const j = sub.toJSON();
