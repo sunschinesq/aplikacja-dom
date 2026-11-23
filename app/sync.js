@@ -25,6 +25,8 @@ export const loadScript = (src) => new Promise((ok, no) => { const s = document.
 
 export async function connect(conf) {
   if (!conf?.url || !conf?.key || !conf?.code) return;
+  // tolerancja na wklejony adres z końcówką /rest/v1/ albo spacjami
+  conf = { ...conf, url: conf.url.trim().replace(/\/(rest|auth)\/v1\/?.*$/, '').replace(/\/+$/, ''), key: conf.key.trim() };
   if (!window.supabase) await loadScript('./app/vendor/supabase.js');
   setStatus('łączenie…');
   try {
