@@ -30,7 +30,7 @@ export function Ustawienia() {
         <label class="btn ghost"><${Icon} n="upload" s=${18} /> Przywróć z pliku<input type="file" accept="application/json,.json" style="display:none" onChange=${restore} /></label></div></div>
   </div><div class="stack">
     <div class="card"><div class="ct"><h2>Synchronizacja z ${personF(me === 'julia' ? 'franek' : 'julia', 'ins')}</h2><span class=${'pill ' + (st === 'połączono' ? 'ok' : st.startsWith('błąd') ? 'warn' : '')}>${st === 'off' ? 'wyłączona' : st}</span></div>
-      <p class="small muted">Dane są teraz tylko na tym telefonie. Żeby widzieć wszystko na obu telefonach na żywo, podłącz bazę Supabase (instrukcja w pliku INSTRUKCJA.md w repozytorium).</p>
+      <p class="small muted">${st === 'połączono' ? 'Zmiany pojawiają się na obu telefonach na żywo.' : 'Bez połączenia dane są tylko na tym telefonie. Instrukcja: plik INSTRUKCJA.md w repozytorium.'}</p>
       <div class="form" style="margin-top:12px">
         <${Field} label="Adres projektu (Project URL)"><input value=${f.url} onInput=${(e) => setF({ ...f, url: e.target.value.trim() })} placeholder="https://xxxx.supabase.co" /></${Field}>
         <${Field} label="Klucz publiczny (anon / publishable key)"><input value=${f.key} onInput=${(e) => setF({ ...f, key: e.target.value.trim() })} /></${Field}>

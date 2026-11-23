@@ -3,7 +3,7 @@
 import { onPush, mergeMany, allItems, getMe } from './store.js';
 
 const CONF = 'naszdom:sync';
-let client = null, house = null, queue = [], status = 'off', listeners = new Set();
+let client = null, house = null, channel = null, connecting = null, queue = [], status = 'off', listeners = new Set();
 const setStatus = (s) => { status = s; listeners.forEach((f) => f(s)); };
 export const syncStatus = () => status;
 export const getClient = () => client;
@@ -25,14 +25,22 @@ onPush((c, it) => { queue.push([c, it]); if (client) flush(); });
 
 export const loadScript = (src) => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
 
-export async function connect(conf) {
+export function connect(conf) {
+  // jedno łączenie naraz (start aplikacji + przycisk „Połącz” nie mogą się nałożyć)
+  if (connecting) return connecting;
+  connecting = doConnect(conf).finally(() => { connecting = null; });
+  return connecting;
+}
+
+async function doConnect(conf) {
   if (!conf?.url || !conf?.key || !conf?.code) return;
   // tolerancja na wklejony adres z końcówką /rest/v1/ albo spacjami
   conf = { ...conf, url: conf.url.trim().replace(/\/(rest|auth)\/v1\/?.*$/, '').replace(/\/+$/, ''), key: conf.key.trim() };
   if (!window.supabase) await loadScript('./app/vendor/supabase.js');
   setStatus('łączenie…');
   try {
-    client = window.supabase.createClient(conf.url, conf.key, { auth: { persistSession: true, storageKey: 'naszdom:auth' } });
+    if (channel) { try { await client.removeChannel(channel); } catch {} channel = null; }
+    if (!client || client.__url !== conf.url) { client = window.supabase.createClient(conf.url, conf.key, { auth: { persistSession: true, storageKey: 'naszdom:auth' } }); client.__url = conf.url; }
     let { data: { session } } = await client.auth.getSession();
     if (!session) { const r = await client.auth.signInAnonymously(); if (r.error) throw r.error; }
     const { data: r, error } = await client.rpc('join_house', { p_code: conf.code, p_person: getMe(), p_pin: conf.pin || null });
@@ -52,11 +60,11 @@ export async function connect(conf) {
     // wyślij to, czego serwer nie ma albo ma starsze
     for (const { coll, data } of allItems()) { const t = remote.get(coll + '/' + data.id); if (!t || t < data.ts) queue.push([coll, data]); }
     await flush();
-    client.channel('dom').on('postgres_changes', { event: '*', schema: 'public', table: 'rows', filter: `house=eq.${house}` },
+    channel = client.channel('dom-' + Date.now()).on('postgres_changes', { event: '*', schema: 'public', table: 'rows', filter: `house=eq.${house}` },
       (p) => p.new?.data && mergeMany([{ coll: p.new.coll, data: p.new.data }])).subscribe();
     setStatus('połączono');
-  } catch (e) { setStatus('błąd: ' + (e.message || e)); client = null; }
+  } catch (e) { setStatus('błąd: ' + (e.message || e)); }
 }
 
-export async function disconnect() { try { await client?.removeAllChannels(); await client?.auth.signOut(); } catch {} localStorage.removeItem(CONF); client = null; house = null; setStatus('off'); }
+export async function disconnect() { channel = null; try { await client?.removeAllChannels(); await client?.auth.signOut(); } catch {} localStorage.removeItem(CONF); client = null; house = null; setStatus('off'); }
 export const autoConnect = () => { const c = getConf(); if (c.url) connect(c); };

@@ -236,3 +236,4 @@ nav.tabs .pillbg .lbl { display:none; }
 @media (min-width: 900px) { .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; } }
 .chip { white-space:nowrap; }
 @media (min-width: 900px) { nav.tabs .brand { display:block; } }
+.ct .pill { white-space:normal; text-align:right; max-width:60%; }
