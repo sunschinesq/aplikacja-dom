@@ -4,14 +4,14 @@ import { getMe, person, personF, patch, put, cfg, list, other } from '../store.j
 import { today, addDays, longDate, zl, zl0, hm, relDays, time, shortDate, monthOf, monthLabel } from '../util.js';
 import { CODES } from '../seed.js';
 import { sharedSpent, forecast, upcomingBills, choresToday, doneToday, catLog, shiftOf, alerts, unreadNotes, debt } from '../logic.js';
-import { markChore, feedCat } from './codzienne.js';
+import { markChore, feedCat, CatEntrySheet } from './codzienne.js';
 import { payRecurring } from './wydatki.js';
 
 const shiftTxt = (s) => (!s ? 'wolne' : s.start ? `${s.place ? s.place + ' ' : ''}${hm(s.start)}–${hm(s.end)}` : (CODES[s.code] || s.code).replace(/ \(.*\)/, ''));
 
 export function Start() {
   const me = getMe(), t = today(), m = monthOf(t);
-  const [note, setNote] = useState(false);
+  const [note, setNote] = useState(false), [catEd, setCatEd] = useState(null);
   const notes = unreadNotes();
   const spent = sharedSpent(m), limit = cfg('budget', {}).limit || 0, fc = forecast(m, spent);
   const bills = upcomingBills(7), al = alerts(), chores = choresToday(), log = catLog(t);
@@ -30,7 +30,8 @@ export function Start() {
 
     <div class="card"><div class="ct"><h2>Kita</h2><span class="muted">${meals.length} z ${goal} posiłków${plays.length ? ` · zabawa ×${plays.length}` : ''}</span></div>
       ${log.length === 0 && html`<p class="empty">Dziś jeszcze nikt jej nie karmił.</p>`}
-      ${log.map((x) => html`<div class="row"><span class="grow">${x.type === 'jedzenie' ? 'Posiłek' : 'Zabawa'} · ${time(x.at)}</span><span class="who small"><${Dot} p=${x.by} />${person(x.by)}</span></div>`)}
+      ${log.map((x) => html`<div class="row click" onClick=${() => setCatEd(x)}><span class="grow">${x.type === 'jedzenie' ? 'Posiłek' : 'Zabawa'} · ${time(x.at)}</span><span class="who small"><${Dot} p=${x.by} />${person(x.by)}</span><span class="muted"><${Icon} n="edit" s=${16} /></span></div>`)}
+      ${log.length > 0 && html`<p class="small muted">Inna godzina? Stuknij wpis.</p>`}
       <div class="row-wrap" style="margin-top:8px">
         <button class="btn ${meals.length < goal ? 'primary' : ''}" onClick=${() => feedCat('jedzenie')}><${Icon} n="bowl" s=${18} /> Nakarmiona</button>
         <button class="btn" onClick=${() => feedCat('zabawa')}><${Icon} n="play" s=${18} /> Zabawa</button>
@@ -67,6 +68,7 @@ export function Start() {
     <div style="margin-bottom:6px"><div class="date">${longDate(t)}</div><h1>${greet()}, <span class="me-name">${person(me)}</span></h1></div>
     <div class="grid2">${left}${right}</div>
     ${note && html`<${NoteSheet} onClose=${() => setNote(false)} />`}
+    ${catEd && html`<${CatEntrySheet} x=${catEd} onClose=${() => setCatEd(null)} />`}
   </div>`;
 }
 

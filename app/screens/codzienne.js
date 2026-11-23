@@ -20,8 +20,24 @@ export function markChore(c) {
   patch('chores', c.id, { last: today() + 'T' + new Date().toTimeString().slice(0, 5), lastBy: by, next: c.who === 'rot' ? other(by) : c.who, snooze: null });
 }
 
+// Zmiana godziny wpisu (np. kliknięte o 12, a karmienie było o 8)
+export function CatEntrySheet({ x, onClose }) {
+  const d = new Date(x.at), pad = (n) => String(n).padStart(2, '0');
+  const [t, setT] = useState(`${pad(d.getHours())}:${pad(d.getMinutes())}`), [type, setType] = useState(x.type);
+  const save = () => { const [h, m] = t.split(':').map(Number); const nd = new Date(x.at); nd.setHours(h, m, 0, 0); patch('catlog', x.id, { at: nd.getTime(), type }); onClose(); };
+  return html`<${Sheet} title="Zmień wpis" onClose=${onClose}><div class="form">
+    <${Seg} value=${type} onChange=${setType} options=${[['jedzenie', 'Posiłek'], ['zabawa', 'Zabawa']]} />
+    <${Field} label="O której godzinie"><input type="time" value=${t} onInput=${(e) => setT(e.target.value)} autofocus /></${Field}>
+    <div class="chips">${[-3, -2, -1].map((h) => { const nd = new Date(); nd.setHours(nd.getHours() + h); const v = `${pad(nd.getHours())}:${pad(nd.getMinutes())}`;
+      return html`<button class="chip" onClick=${() => setT(v)}>${-h} h temu</button>`; })}</div>
+    <button class="btn primary block" disabled=${!t} onClick=${save}>Zapisz</button>
+    <button class="btn ghost block" onClick=${() => { remove('catlog', x.id); onClose(); }}><${Icon} n="trash" s=${18} /> Usuń wpis</button>
+  </div></${Sheet}>`;
+}
+
 export function Kita() {
   const [day, setDay] = useState(today());
+  const [ed, setEd] = useState(null);
   const log = catLog(day), goal = cfg('catGoal', 3);
   const meals = log.filter((x) => x.type === 'jedzenie');
   const week = [...Array(7)].map((_, i) => addDays(today(), i - 6));
@@ -35,14 +51,16 @@ export function Kita() {
       <div class="card"><div class="ct"><h2>Dziennik</h2>
         <span class="row-wrap"><button class="icon-btn sm soft" onClick=${() => setDay(addDays(day, -1))} aria-label="Dzień wcześniej"><${Icon} n="left" s=${18} /></button>
           <button class="icon-btn sm soft" disabled=${day >= today()} onClick=${() => setDay(addDays(day, 1))} aria-label="Dzień później"><${Icon} n="right" s=${18} /></button></span></div>
-        ${log.map((x) => html`<div class="row"><span class="grow">${x.type === 'jedzenie' ? 'Posiłek' : 'Zabawa'} · ${time(x.at)}</span><span class="who small"><${Dot} p=${x.by} />${person(x.by)}</span>
-          <button class="icon-btn sm" aria-label="Usuń wpis" onClick=${() => confirm('Usunąć wpis?') && remove('catlog', x.id)}><${Icon} n="x" s=${16} /></button></div>`)}
-        ${!log.length && html`<${Empty}>Brak wpisów.</${Empty}>`}</div></div>
+        ${log.map((x) => html`<div class="row click" onClick=${() => setEd(x)}><span class="grow">${x.type === 'jedzenie' ? 'Posiłek' : 'Zabawa'} · ${time(x.at)}</span><span class="who small"><${Dot} p=${x.by} />${person(x.by)}</span>
+          <${Icon} n="edit" s=${18} /></div>`)}
+        ${!log.length && html`<${Empty}>Brak wpisów.</${Empty}>`}
+        ${log.length > 0 && html`<p class="small muted">Stuknij wpis, żeby zmienić godzinę.</p>`}</div></div>
     <div class="stack"><div class="card"><div class="ct"><h2>Ostatnie 7 dni</h2></div>
       <div class="minibars">${week.map((d) => { const n = catLog(d).filter((x) => x.type === 'jedzenie').length;
         return html`<div><span>${n}</span><i style=${`height:${Math.min(100, n / Math.max(goal, 1) * 80)}%;${n < goal ? 'opacity:.4' : ''}`} />${shortDate(d).split(' ')[0]}</div>`; })}</div></div>
       <div class="card"><div class="inline" style="align-items:center"><span style="flex:1">Ile posiłków dziennie</span>
         <input type="number" min="1" max="8" style="width:80px" value=${goal} onChange=${(e) => setCfg('catGoal', +e.target.value || 3)} /></div></div></div></div>
+    ${ed && html`<${CatEntrySheet} x=${ed} onClose=${() => setEd(null)} />`}
   </${Page}>`;
 }
 
