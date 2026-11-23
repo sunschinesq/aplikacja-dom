@@ -1,0 +1,83 @@
+<!doctype html><html lang="pl"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Space+Grotesk:wght@400;500;700&family=Manrope:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e9e6e2;font-family:system-ui;padding:40px;display:flex;gap:44px;align-items:flex-start}
+.col{display:flex;flex-direction:column;gap:14px;align-items:center}
+.lbl{font:600 22px 'IBM Plex Sans';color:#222}
+.lbl small{display:block;font:400 15px 'IBM Plex Sans';color:#666;text-align:center;margin-top:2px}
+.phone{width:390px;height:844px;border-radius:44px;overflow:hidden;position:relative;background:var(--bg);color:var(--ink);font-family:var(--body);box-shadow:0 20px 50px rgba(0,0,0,.18);border:10px solid #111}
+.scroll{padding:54px 18px 100px;display:flex;flex-direction:column;gap:var(--gap)}
+.date{font-size:13px;color:var(--muted);letter-spacing:var(--track)}
+h1{font-family:var(--head);font-weight:var(--hw);font-size:30px;line-height:1.1;margin-top:4px}
+h1 .me{color:var(--julia)}
+.card{background:var(--card);border-radius:var(--r);padding:14px 16px;border:var(--border)}
+.ct{font-size:12px;text-transform:var(--tt);letter-spacing:var(--track2);color:var(--muted);font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
+.row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;font-size:15px;gap:8px}
+.row+.row{border-top:1px solid var(--line)}
+.who{display:flex;align-items:center;gap:8px;font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%}
+.j{background:var(--julia)}.f{background:var(--franek)}
+.sub{color:var(--muted);font-size:14px}
+.note{background:var(--notebg);border-radius:var(--r);padding:14px 16px;border-left:4px solid var(--franek);font-size:15px}
+.note b{font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px;text-transform:var(--tt);letter-spacing:var(--track2)}
+.note p{font-family:var(--notefont);font-size:var(--notesize);line-height:1.3}
+.btn{background:var(--accentbg);color:var(--accentink);border:none;border-radius:var(--rb);padding:7px 12px;font:600 13px var(--body)}
+.chk{width:20px;height:20px;border-radius:6px;border:2px solid var(--muted);flex:none}
+.chk.on{background:var(--julia);border-color:var(--julia)}
+.chk.onf{background:var(--franek);border-color:var(--franek)}
+.done{color:var(--muted);text-decoration:line-through}
+.money{background:var(--hero);color:var(--heroink);border-radius:var(--r);padding:16px;border:var(--border)}
+.big{font-family:var(--num);font-size:38px;font-weight:var(--nw);margin:4px 0 10px;font-variant-numeric:tabular-nums}
+.bar{height:8px;border-radius:4px;background:var(--track3);overflow:hidden}
+.bar i{display:block;height:100%;width:41%;background:var(--heroacc)}
+.mrow{display:flex;justify-content:space-between;font-size:13px;margin-top:8px;opacity:.85}
+.pill{font-size:12px;padding:3px 9px;border-radius:20px;background:var(--warnbg);color:var(--warn);font-weight:600}
+nav{position:absolute;bottom:0;left:0;right:0;height:84px;background:var(--nav);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding-top:10px}
+nav div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--muted);width:64px}
+nav div.a{color:var(--ink);font-weight:600}
+nav div.a svg{color:var(--julia)}
+svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* 1 PAPIER */
+.t1{--bg:#F6F1E9;--card:transparent;--ink:#1E1A16;--muted:#7A6F63;--line:#DDD3C5;--julia:#C8486F;--franek:#3D6FB0;--head:'Fraunces';--hw:600;--body:'IBM Plex Sans';--num:'Fraunces';--nw:600;--r:0;--rb:2px;--gap:6px;--border:none;--tt:uppercase;--track:.02em;--track2:.08em;--notebg:#FFFDF7;--notefont:'Fraunces';--notesize:17px;--accentbg:#1E1A16;--accentink:#F6F1E9;--hero:transparent;--heroink:#1E1A16;--heroacc:#C8486F;--track3:#E2D8CA;--warnbg:#F3E2C4;--warn:#8A5A12;--nav:#F6F1E9}
+.t1 .card,.t1 .money{border-top:1.5px solid #1E1A16;padding:12px 2px}
+.t1 .note{box-shadow:0 1px 0 #DDD3C5;border-left:none;border-top:3px solid var(--franek);transform:rotate(-.6deg)}
+/* 2 RÓŻ */
+.t2{--bg:#FFF5F8;--card:#FFFFFF;--ink:#4A2C3A;--muted:#8A5A70;--line:#F6DCE6;--julia:#D96C9A;--franek:#6E95D1;--head:'Bricolage Grotesque';--hw:700;--body:'Bricolage Grotesque';--num:'Bricolage Grotesque';--nw:700;--r:20px;--rb:20px;--gap:12px;--border:1px solid #F6DCE6;--tt:none;--track:0;--track2:0;--notebg:#FDE7EF;--notefont:'Bricolage Grotesque';--notesize:16px;--accentbg:#F8C8DC;--accentink:#4A2C3A;--hero:#F8C8DC;--heroink:#4A2C3A;--heroacc:#D96C9A;--track3:#FDE7EF;--warnbg:#FFE4D4;--warn:#9A4A1E;--nav:#FFFFFF}
+.t2 .ct{font-size:14px}
+/* 3 GRAFIT */
+.t3{--bg:#FFFFFF;--card:#F2F2F0;--ink:#111111;--muted:#6B6B6B;--line:#E0E0DC;--julia:#E0457B;--franek:#2F6FEB;--head:'Space Grotesk';--hw:700;--body:'Space Grotesk';--num:'IBM Plex Mono';--nw:500;--r:6px;--rb:4px;--gap:8px;--border:none;--tt:uppercase;--track:.04em;--track2:.1em;--notebg:#FFF1F5;--notefont:'Space Grotesk';--notesize:16px;--accentbg:#111;--accentink:#fff;--hero:#111111;--heroink:#FFFFFF;--heroacc:#E0457B;--track3:#333;--warnbg:#FFE9A8;--warn:#5C4400;--nav:#FFFFFF}
+.t3 h1{font-size:34px;letter-spacing:-.02em}
+/* 4 MGŁA */
+.t4{--bg:#EEF0F4;--card:#FFFFFF;--ink:#1D2433;--muted:#667085;--line:#E4E7EC;--julia:#D9507F;--franek:#3E7BD6;--head:'Manrope';--hw:700;--body:'Manrope';--num:'Manrope';--nw:700;--r:14px;--rb:10px;--gap:10px;--border:none;--tt:none;--track:0;--track2:0;--notebg:#FFFFFF;--notefont:'Manrope';--notesize:15px;--accentbg:#1D2433;--accentink:#fff;--hero:#FFFFFF;--heroink:#1D2433;--heroacc:linear-gradient(90deg,#D9507F,#3E7BD6);--track3:#E4E7EC;--warnbg:#FDEBD3;--warn:#8A4B08;--nav:#FFFFFF}
+.t4 .card,.t4 .money,.t4 .note{box-shadow:0 1px 2px rgba(16,24,40,.06)}
+.t4 .ct{font-size:13px;color:var(--ink)}
+</style></head><body></body>
+<script>
+const I={home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',wal:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',cart:'<path d="M3 4h2l2.4 11h10.2L20 8H6.2"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',fork:'<path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 2-2 6 0 8v10"/>',more:'<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>'};
+const screen=`<div class="scroll">
+<div><div class="date">Poniedziałek, 23 listopada</div><h1>Dzień dobry, <span class="me">Julia</span></h1></div>
+<div class="note"><b>Liścik od Franka</b><p>Mandarynki są w lodówce. Powodzenia na zajęciach!</p></div>
+<div class="card"><div class="ct"><span>Zmiany</span><span>dziś · jutro</span></div>
+<div class="row"><span class="who"><i class="dot j"></i>Julia</span><span>Cabo 16–22 <span class="sub">· jutro wolne</span></span></div>
+<div class="row"><span class="who"><i class="dot f"></i>Franek</span><span>8–16 <span class="sub">· jutro 8–16</span></span></div></div>
+<div class="card"><div class="ct"><span>Kot</span><span>2 z 3 posiłków</span></div>
+<div class="row"><span>Rano · 7:40 <span class="sub">Franek</span></span><span class="sub">✓</span></div>
+<div class="row"><span>Południe · 13:05 <span class="sub">Julia</span></span><span class="sub">✓</span></div>
+<div class="row"><span>Wieczór</span><button class="btn">Nakarmione</button></div></div>
+<div class="card"><div class="ct"><span>Obowiązki na dziś</span><span>1 / 3</span></div>
+<div class="row"><span class="who" style="font-weight:400"><i class="chk onf"></i><span class="done">Wynieść śmieci</span></span><i class="dot f"></i></div>
+<div class="row"><span class="who" style="font-weight:400"><i class="chk"></i>Odkurzyć salon</span><i class="dot j"></i></div>
+<div class="row"><span class="who" style="font-weight:400"><i class="chk"></i>Kuweta</span><i class="dot f"></i></div></div>
+<div class="money"><div class="ct" style="color:inherit;opacity:.75"><span>Konto wspólne · listopad</span></div>
+<div class="big">1 848,70 zł</div><div class="bar"><i></i></div>
+<div class="mrow"><span>z 4 500 zł</span><span>prognoza 2 350 zł</span></div></div>
+<div class="card"><div class="ct"><span>Do zapłacenia i uwaga</span></div>
+<div class="row"><span>Netflix <span class="sub">· 24 lis</span></span><span style="font-weight:600">43,00 zł</span></div>
+<div class="row"><span>Jogurt grecki</span><span class="pill">jutro</span></div></div>
+</div><nav>${[['home','Start',1],['wal','Wydatki'],['cart','Zakupy'],['fork','Kuchnia'],['more','Więcej']].map(([i,t,a])=>`<div class="${a?'a':''}"><svg viewBox="0 0 24 24">${I[i]}</svg>${t}</div>`).join('')}</nav>`;
+const T=[['t1','1 · Papier','kremowe tło, szeryfowe nagłówki, linie zamiast kart'],['t2','2 · Pudrowy róż','pastelowy, miękki, zaokrąglony'],['t3','3 · Grafit','mocny kontrast, techniczny, wyraźne liczby'],['t4','4 · Mgła','chłodna szarość, spokojny, „aplikacyjny”']];
+const only=new URLSearchParams(location.search).get('t');
+document.body.innerHTML=T.filter(t=>!only||t[0]==only).map(([c,n,d])=>`<div class="col"><div class="lbl">${n}<small>${d}</small></div><div class="phone ${c}">${screen}</div></div>`).join('');
+</script></html>
