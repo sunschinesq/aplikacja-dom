@@ -110,6 +110,13 @@ end $$;
 
 grant execute on function join_house(text, text, text) to anon, authenticated;
 
+-- Uprawnienia (nowe projekty Supabase nie nadają ich automatycznie).
+-- Dostęp i tak ograniczają reguły RLS powyżej.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on table rows to authenticated;
+grant select on table members to authenticated;
+revoke all on table houses, person_pins, join_attempts from anon, authenticated;
+
 -- Synchronizacja na żywo
 do $$ begin
   alter publication supabase_realtime add table rows;
