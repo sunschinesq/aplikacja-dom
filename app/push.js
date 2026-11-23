@@ -8,7 +8,17 @@ const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.p
 export const needsHomeScreen = () => isIOS() && !isStandalone();
 
 const b64 = (s) => { const p = '='.repeat((4 - (s.length % 4)) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, (c) => c.charCodeAt(0)); };
-const fn = async (body) => { const { data, error } = await getClient().functions.invoke('notify', { body }); if (error) { let m = error.message; try { m = (await error.context.json()).error || m; } catch {} throw new Error(m); } return data; };
+const fn = async (body) => {
+  const { data, error } = await getClient().functions.invoke('notify', { body });
+  if (error) {
+    const st = error.context?.status; let m = error.message;
+    try { const j = await error.context.json(); m = j.error || j.message || m; } catch {}
+    if (st === 404) m = 'Funkcja „notify” nie jest jeszcze wdrożona w Supabase (Edge Functions).';
+    if (st === 401) m = 'W funkcji „notify” wyłącz „Verify JWT” i zapisz.';
+    throw new Error(m);
+  }
+  return data;
+};
 
 export async function pushState() {
   if (!pushSupported()) return 'brak';
