@@ -116,6 +116,9 @@ grant usage on schema public to anon, authenticated;
 grant select, insert, update on table rows to authenticated;
 grant select on table members to authenticated;
 revoke all on table houses, person_pins, join_attempts from anon, authenticated;
+-- funkcja serwerowa (service_role) musi mieć dostęp do wszystkich tabel
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
 
 -- Synchronizacja na żywo
 do $$ begin

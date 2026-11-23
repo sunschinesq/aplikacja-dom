@@ -32,6 +32,9 @@ create policy "subs own" on push_subs for all using (uid = auth.uid())
   with check (uid = auth.uid() and house = my_house() and person = my_person());
 grant select, insert, update, delete on table push_subs to authenticated;
 revoke all on table push_config, push_throttle from anon, authenticated;
+-- funkcja serwerowa (service_role) musi mieć dostęp do wszystkich tabel
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
 
 -- Wywołanie funkcji „notify” z bazy (z sekretem, którego aplikacja nie zna)
 create or replace function notify_call(p_body jsonb) returns void
