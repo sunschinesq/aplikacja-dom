@@ -98,6 +98,107 @@ export function buildRowEvent(row: any, rows: Row[], now = Date.now()) {
   return [];
 }
 
+// ---------- kalendarz z pracy (ICS) ----------
+const fmtWaw = new Intl.DateTimeFormat("sv-SE", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+function icsTime(v: string, params: string) {
+  const m = v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?$/);
+  if (!m) return null;
+  const date = `${m[1]}-${m[2]}-${m[3]}`;
+  if (!m[4] || /VALUE=DATE(?!-)/.test(params)) return { date, allDay: true };
+  if (m[7]) { // UTC → czas polski
+    const [d, t] = fmtWaw.format(new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]))).split(" ");
+    return { date: d, time: t.slice(0, 5) };
+  }
+  return { date, time: `${m[4]}:${m[5]}` }; // czas lokalny (TZID)
+}
+export function parseIcs(text: string) {
+  const lines = text.replace(/\r?\n[ \t]/g, "").split(/\r?\n/);
+  const out: any[] = [];
+  let ev: any = null;
+  for (const l of lines) {
+    if (l === "BEGIN:VEVENT") { ev = { exdates: [] }; continue; }
+    if (l === "END:VEVENT") { if (ev?.start) out.push(ev); ev = null; continue; }
+    if (!ev) continue;
+    const i = l.indexOf(":"); if (i < 0) continue;
+    const [name, ...params] = l.slice(0, i).split(";"); const val = l.slice(i + 1), ps = params.join(";");
+    if (name === "DTSTART") ev.start = icsTime(val, ps);
+    else if (name === "DTEND") ev.end = icsTime(val, ps);
+    else if (name === "SUMMARY") ev.summary = val.replace(/\\,/g, ",").replace(/\\;/g, ";").replace(/\\n/gi, " ");
+    else if (name === "STATUS") ev.status = val.trim();
+    else if (name === "UID") ev.uid = val.trim();
+    else if (name === "RRULE") ev.rrule = val.trim();
+    else if (name === "RECURRENCE-ID") ev.recId = icsTime(val, ps);
+    else if (name === "EXDATE") for (const v of val.split(",")) { const t = icsTime(v.trim(), ps); if (t) ev.exdates.push(t.date); }
+  }
+  return out;
+}
+
+// Rozwinięcie wydarzeń powtarzalnych (RRULE: DAILY/WEEKLY/MONTHLY, INTERVAL, BYDAY, UNTIL, COUNT, EXDATE, RECURRENCE-ID)
+const WD = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+const wday = (d: string) => new Date(parse(d)).getUTCDay();
+export function expandIcs(events: any[], from: string, to: string) {
+  const out: any[] = [];
+  const overridden = new Set(events.filter((e) => e.recId).map((e) => `${e.uid}|${e.recId.date}`));
+  for (const e of events) {
+    if (e.status === "CANCELLED") continue;
+    if (!e.rrule) { if (e.start.date >= from && e.start.date <= to) out.push(e); continue; }
+    const r: Record<string, string> = Object.fromEntries(e.rrule.split(";").map((x: string) => x.split("=")));
+    const freq = r.FREQ, step = +(r.INTERVAL || 1), count = r.COUNT ? +r.COUNT : Infinity;
+    const until = r.UNTIL ? icsTime(r.UNTIL, "")?.date || to : to;
+    const end = until < to ? until : to;
+    const byday = r.BYDAY ? r.BYDAY.split(",").map((x) => WD.indexOf(x.slice(-2))) : [wday(e.start.date)];
+    let n = 0;
+    const emit = (d: string) => {
+      n++;
+      if (d < from || e.exdates.includes(d) || overridden.has(`${e.uid}|${d}`)) return;
+      out.push({ ...e, start: { ...e.start, date: d }, end: e.end ? { ...e.end, date: d } : undefined });
+    };
+    if (freq === "DAILY") for (let d = e.start.date; d <= end && n < count; d = addDays(d, step)) emit(d);
+    else if (freq === "WEEKLY") {
+      let wk = addDays(e.start.date, -((wday(e.start.date) + 6) % 7)); // poniedziałek tygodnia startu
+      for (; wk <= end && n < count; wk = addDays(wk, 7 * step)) {
+        for (let i = 0; i < 7 && n < count; i++) { const d = addDays(wk, i); if (d < e.start.date || d > end) continue; if (byday.includes(wday(d))) emit(d); }
+      }
+    } else if (freq === "MONTHLY") {
+      for (let k = 0; n < count; k += step) {
+        const [y, m] = e.start.date.split("-").map(Number); const dt = new Date(Date.UTC(y, m - 1 + k, +e.start.date.slice(8)));
+        const d = dt.toISOString().slice(0, 10); if (d > end) break; if (+d.slice(8) === +e.start.date.slice(8)) emit(d);
+      }
+    } else if (e.start.date >= from && e.start.date <= to) out.push(e);
+  }
+  return out;
+}
+
+// Zajęcia ze studiów: bez kolokwiów, testów, egzaminów i sesji nauki
+export function buildClasses(events: any[]) {
+  const days: Record<string, any[]> = {};
+  for (const e of events) {
+    if (e.start.allDay || /kolokw|test|egzamin|zaliczeni|^nauka/i.test(e.summary || "")) continue;
+    (days[e.start.date] ||= []).push({ start: e.start.time, end: e.end?.time || e.start.time, title: (e.summary || "").replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}\u200d\ufe0f]/gu, "").trim() });
+  }
+  for (const d of Object.keys(days)) days[d].sort((a, b) => a.start.localeCompare(b.start));
+  return days;
+}
+
+// Zamiana wydarzeń na dni grafiku i scalenie z obecnymi (ręczne wpisy zostają)
+export function mergeFeed(days: Record<string, any>, events: any[], place: string, t: string) {
+  const from = addDays(t, -31), to = addDays(t, 180), fresh: Record<string, any> = {};
+  for (const e of events) {
+    const d = e.start.date; if (d < from || d > to) continue;
+    if (e.start.allDay) { if (/urlop/i.test(e.summary || "")) fresh[d] = { code: "U", src: "feed" }; continue; }
+    const end = e.end?.time || e.start.time;
+    const cur = fresh[d];
+    if (cur?.start) fresh[d] = { ...cur, start: cur.start < e.start.time ? cur.start : e.start.time, end: cur.end > end ? cur.end : end };
+    else fresh[d] = { start: e.start.time, end, place: place || undefined, src: "feed" };
+  }
+  // dzień „należy” do kalendarza, jeśli przyszedł z niego (albo z pliku startowego z tym samym miejscem) i nie był poprawiany ręcznie
+  const owned = (v: any) => v && !v.manual && (v.src === "feed" || (!v.src && place && v.place === place));
+  const next: Record<string, any> = {};
+  for (const [d, v] of Object.entries(days || {})) if (!(owned(v) && d >= from && d <= to)) next[d] = v;
+  for (const [d, v] of Object.entries(fresh)) if (!next[d]) next[d] = v;
+  return next;
+}
+
 // ---------- serwer ----------
 async function handler(req: Request) {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -136,6 +237,53 @@ async function handler(req: Request) {
     return json({ sent: await pushTo([s], { title: "Nasz dom", body: "Powiadomienia działają 🌸", url: "./" }) });
   }
 
+  // ----- kalendarze: praca (grafik) i studia (zajęcia) -----
+  const syncFeed = async (f: any) => {
+    let info = "";
+    try {
+      const r = await fetch(f.url.replace(/^webcal:/i, "https:"), { headers: { "User-Agent": "NaszDom/1.0" } });
+      if (!r.ok) throw new Error(`kalendarz odpowiedział ${r.status}`);
+      const text = await r.text();
+      if (!text.includes("BEGIN:VCALENDAR")) throw new Error("to nie jest link do kalendarza (.ics)");
+      const t = todayIn(), events = expandIcs(parseIcs(text), addDays(t, -31), addDays(t, 180));
+      const coll = f.kind === "studia" ? "classes" : "shifts";
+      const { data: row } = await db.from("rows").select("data").eq("house", f.house).eq("coll", coll).eq("id", f.person).maybeSingle();
+      const cur = row?.data || { id: f.person, days: {} };
+      const days = f.kind === "studia" ? buildClasses(events) : mergeFeed(cur.days || {}, events, f.place, t);
+      if (JSON.stringify(days) !== JSON.stringify(cur.days || {})) {
+        const data = { ...cur, id: f.person, days, del: false, ts: Date.now() };
+        const { error } = await db.from("rows").upsert({ house: f.house, coll, id: f.person, data, ts: data.ts, owner: null });
+        if (error) throw error;
+      }
+      info = `ok · ${f.kind === "studia" ? Object.values(days).flat().length + " zajęć" : events.length + " zmian"}`;
+    } catch (e) { info = "błąd: " + ((e as Error).message || e); }
+    await db.from("calendar_feeds").update({ last_sync: new Date().toISOString(), last_info: info }).eq("house", f.house).eq("person", f.person).eq("kind", f.kind);
+    return info;
+  };
+  if (String(body.action).startsWith("feed_")) {
+    const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer /, "");
+    const { data: u } = await db.auth.getUser(jwt);
+    if (!u?.user) return json({ error: "Brak logowania" }, 401);
+    const { data: m } = await db.from("members").select("house,person").eq("uid", u.user.id).maybeSingle();
+    if (!m) return json({ error: "Telefon nie jest połączony z domem" }, 403);
+    const key = { house: m.house, person: m.person };
+    if (body.action === "feed_set") {
+      const kind = body.kind === "studia" ? "studia" : "praca", url = String(body.url || "").trim();
+      if (!url) { await db.from("calendar_feeds").delete().match({ ...key, kind }); }
+      else {
+        if (!/^(https?|webcal):\/\//i.test(url)) return json({ error: "Link musi zaczynać się od https:// albo webcal://" }, 400);
+        await db.from("calendar_feeds").upsert({ ...key, kind, url, place: String(body.place || "").slice(0, 40) });
+      }
+    }
+    const { data: fs } = await db.from("calendar_feeds").select("*").match(key);
+    const out: Record<string, any> = {};
+    for (const f of fs || []) {
+      const run = body.action === "feed_sync" || (body.action === "feed_set" && f.kind === body.kind);
+      out[f.kind] = { place: f.place, info: run ? await syncFeed(f) : f.last_info, last_sync: run ? new Date().toISOString() : f.last_sync };
+    }
+    return json({ feeds: out });
+  }
+
   // akcje z bazy wymagają sekretu
   if (req.headers.get("x-hook") !== conf.hook_secret) return json({ error: "Brak dostępu" }, 401);
   const load = async (house: string) => {
@@ -158,6 +306,12 @@ async function handler(req: Request) {
       sent += await send(row.house, ev.to, ev.msg);
     }
     return json({ sent });
+  }
+
+  if (body.action === "feeds") {
+    const { data: fs } = await db.from("calendar_feeds").select("*");
+    const res = []; for (const f of fs || []) res.push(await syncFeed(f));
+    return json({ res });
   }
 
   if (body.action === "daily" || body.action === "evening") {

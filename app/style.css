@@ -237,3 +237,4 @@ nav.tabs .pillbg .lbl { display:none; }
 .chip { white-space:nowrap; }
 @media (min-width: 900px) { nav.tabs .brand { display:block; } }
 .ct .pill { white-space:normal; text-align:right; max-width:60%; }
+.cal .sh.zaj { background:var(--s2); color:var(--muted); font-weight:500; }

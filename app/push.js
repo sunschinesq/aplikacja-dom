@@ -8,6 +8,7 @@ const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.p
 export const needsHomeScreen = () => isIOS() && !isStandalone();
 
 const b64 = (s) => { const p = '='.repeat((4 - (s.length % 4)) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, (c) => c.charCodeAt(0)); };
+export const callFn = (body) => fn(body);
 const fn = async (body) => {
   const { data, error } = await getClient().functions.invoke('notify', { body });
   if (error) {

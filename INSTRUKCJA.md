@@ -37,6 +37,12 @@ Klucz „anon” jest publiczny z założenia, więc można go trzymać w aplika
 4. W funkcji `notify` → **Details** (albo Settings): wyłącz **Verify JWT** / **Enforce JWT verification** → **Save**.
 5. W aplikacji (otwartej z ikonki na ekranie głównym): **Ustawienia → Powiadomienia → Włącz na tym telefonie** → Zezwól → **Wyślij próbne**.
 
+## 5. Grafik i zajęcia z kalendarza (automatycznie)
+
+1. **SQL Editor** → wklej `supabase/kalendarz.sql` → **Run**.
+2. Wklej nową wersję `supabase/functions/notify/index.ts` w funkcję `notify` (plik `index.ts`) → **Deploy updates**.
+3. W aplikacji: **Więcej → Grafik → Automatycznie z kalendarza** → wklej link `.ics` / `webcal://` do kalendarza z pracy i ze studiów.
+
 ## Kopia zapasowa
 
 Darmowy Supabase nie robi kopii. Raz na jakiś czas: **Ustawienia → Pobierz kopię** i wrzuć plik na Dysk Google.

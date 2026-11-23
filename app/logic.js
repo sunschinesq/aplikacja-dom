@@ -61,6 +61,7 @@ export const catLog = (day) => list('catlog').filter((x) => x.day === day).sort(
 
 // Zmiany
 export const shiftOf = (p, d) => list('shifts').find((s) => s.id === p)?.days?.[d];
+export const classesOf = (p, d) => list('classes').find((s) => s.id === p)?.days?.[d] || [];
 
 // Spiżarnia i jednostki
 const UNITS = { g: ['g', 1], dag: ['g', 10], kg: ['g', 1000], ml: ['ml', 1], l: ['ml', 1000] };

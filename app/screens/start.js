@@ -3,7 +3,7 @@ import { html, Icon, Dot, Sheet } from '../ui.js';
 import { getMe, person, personF, patch, put, cfg, list, other } from '../store.js';
 import { today, addDays, longDate, zl, zl0, hm, relDays, time, shortDate, monthOf, monthLabel } from '../util.js';
 import { CODES } from '../seed.js';
-import { sharedSpent, forecast, upcomingBills, choresToday, doneToday, catLog, shiftOf, alerts, unreadNotes, debt } from '../logic.js';
+import { sharedSpent, forecast, upcomingBills, choresToday, doneToday, catLog, shiftOf, classesOf, alerts, unreadNotes, debt } from '../logic.js';
 import { markChore, feedCat, CatEntrySheet } from './codzienne.js';
 import { payRecurring } from './wydatki.js';
 
@@ -25,7 +25,9 @@ export function Start() {
 
     <div class="card"><div class="ct"><h2>Zmiany</h2><a class="muted" href="#/grafik">grafik →</a></div>
       ${['julia', 'franek'].map((p) => html`<div class="row"><span class="grow"><span class="who"><${Dot} p=${p} />${person(p)}</span></span>
-        <span class="small" style="text-align:right"><b>${shiftTxt(shiftOf(p, t))}</b><br/><span class="muted">jutro ${shiftTxt(shiftOf(p, addDays(t, 1)))}</span></span></div>`)}
+        <span class="small" style="text-align:right"><b>${shiftTxt(shiftOf(p, t))}</b>
+          ${classesOf(p, t).length > 0 && html`<br/><span>zajęcia ${classesOf(p, t).map((c) => `${hm(c.start)}–${hm(c.end)}`).join(', ')}</span>`}
+          <br/><span class="muted">jutro ${shiftTxt(shiftOf(p, addDays(t, 1)))}${classesOf(p, addDays(t, 1)).length ? ' · zajęcia' : ''}</span></span></div>`)}
     </div>
 
     <div class="card"><div class="ct"><h2>Kita</h2><span class="muted">${meals.length} z ${goal} posiłków${plays.length ? ` · zabawa ×${plays.length}` : ''}</span></div>
