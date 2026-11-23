@@ -18,7 +18,10 @@ const emit = () => subs.forEach((f) => f());
 
 export const getMe = () => { try { return localStorage.getItem(ME); } catch { return null; } };
 export const other = (p) => (p === 'julia' ? 'franek' : 'julia');
-export function setMe(p) { try { localStorage.setItem(ME, p); } catch {} emit(); }
+export function setMe(p) { if (getMe()) return; try { localStorage.setItem(ME, p); } catch {} emit(); }
+export const refresh = () => emit();
+// Wyczyść telefon: usuwa dane i wybór osoby z tego urządzenia (dane w chmurze zostają)
+export function wipeDevice() { Object.keys(localStorage).filter((k) => k.startsWith('naszdom:')).forEach((k) => localStorage.removeItem(k)); location.hash = ''; location.reload(); }
 
 const visible = (x) => !x.del && (!x.owner || x.owner === getMe());
 export const list = (c) => Object.values(db[c] || {}).filter(visible);

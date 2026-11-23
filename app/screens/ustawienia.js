@@ -1,6 +1,6 @@
 import { useState, useEffect } from '../vendor/hooks.module.js';
 import { html, Icon, Seg, Field, Page } from '../ui.js';
-import { getMe, setMe, person, personF, cfg, setCfg, exportJSON, replaceAll } from '../store.js';
+import { getMe, person, personF, cfg, setCfg, exportJSON, replaceAll, refresh, wipeDevice } from '../store.js';
 import { connect, disconnect, getConf, syncStatus, onStatus } from '../sync.js';
 import { today } from '../util.js';
 
@@ -11,14 +11,13 @@ export function Ustawienia() {
   const [st, setSt] = useState(syncStatus());
   useEffect(() => onStatus(setSt), []);
   const c = getConf();
-  const [f, setF] = useState({ url: c.url || '', key: c.key || '', code: c.code || '' });
-  const chTheme = (v) => { setTheme(v); localStorage.setItem('naszdom:theme', v); setMe(me); };
+  const [f, setF] = useState({ url: c.url || '', key: c.key || '', code: c.code || '', pin: '' });
+  const chTheme = (v) => { setTheme(v); localStorage.setItem('naszdom:theme', v); refresh(); };
   const backup = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([exportJSON()], { type: 'application/json' })); a.download = `nasz-dom-kopia-${today()}.json`; a.click(); };
   const restore = async (e) => { const file = e.target.files[0]; if (!file) return; try { const d = JSON.parse(await file.text()); if (confirm('Zastąpić dane w aplikacji danymi z kopii?')) replaceAll(d); } catch { alert('To nie jest poprawny plik kopii.'); } };
   return html`<${Page} title="Ustawienia" back="#/wiecej"><div class="grid2"><div class="stack">
-    <div class="card"><div class="ct"><h2>Kto korzysta z tego telefonu</h2></div>
-      <${Seg} value=${me} onChange=${setMe} options=${[['julia', person('julia')], ['franek', person('franek')]]} />
-      <p class="small muted" style="margin-top:8px">Julia ma różowy wygląd, Franek niebieski.</p></div>
+    <div class="card"><div class="ct"><h2>Ten telefon należy do</h2><span class="who"><i class=${'dot ' + me} />${person(me)}</span></div>
+      <p class="small muted">Osoby nie da się zmienić. Jeśli telefon przechodzi do kogoś innego, wyczyść go na dole tej strony.</p></div>
     <div class="card"><div class="ct"><h2>Wygląd</h2></div>
       <${Seg} value=${theme} onChange=${chTheme} options=${[['auto', 'Jak w telefonie'], ['light', 'Jasny'], ['dark', 'Ciemny']]} /></div>
     <div class="card"><div class="ct"><h2>Imiona</h2></div>
@@ -34,11 +33,15 @@ export function Ustawienia() {
       <div class="form" style="margin-top:12px">
         <${Field} label="Adres projektu (Project URL)"><input value=${f.url} onInput=${(e) => setF({ ...f, url: e.target.value.trim() })} placeholder="https://xxxx.supabase.co" /></${Field}>
         <${Field} label="Klucz publiczny (anon / publishable key)"><input value=${f.key} onInput=${(e) => setF({ ...f, key: e.target.value.trim() })} /></${Field}>
-        <${Field} label="Kod domu" hint="Ten sam na obu telefonach. Im dłuższy, tym bezpieczniej, np. zielony-kubek-47."><input value=${f.code} onInput=${(e) => setF({ ...f, code: e.target.value })} /></${Field}>
-        <button class="btn primary block" disabled=${!f.url || !f.key || f.code.length < 4} onClick=${() => connect(f)}>Połącz</button>
+        <${Field} label="Kod domu" hint="Ten sam na obu telefonach, min. 6 znaków, np. zielony-kubek-47."><input value=${f.code} onInput=${(e) => setF({ ...f, code: e.target.value })} /></${Field}>
+        ${st !== 'połączono' && html`<${Field} label=${'PIN ' + personF(me, 'gen')} hint="4–8 cyfr. Przy pierwszym połączeniu go ustawiasz. Potem jest potrzebny tylko na nowym telefonie. Nie mów go nikomu."><input type="password" inputmode="numeric" autocomplete="off" value=${f.pin} onInput=${(e) => setF({ ...f, pin: e.target.value.replace(/\D/g, '').slice(0, 8) })} /></${Field}>`}
+        <button class="btn primary block" disabled=${!f.url || !f.key || f.code.length < 6 || (st !== 'połączono' && f.pin.length < 4)} onClick=${() => connect(f)}>Połącz</button>
         ${c.url && html`<button class="btn ghost block" onClick=${() => { disconnect(); setF({ url: '', key: '', code: '' }); }}>Odłącz ten telefon</button>`}
       </div></div>
     <div class="card"><div class="ct"><h2>Powiadomienia</h2></div>
       <p class="small muted">Powiadomienia na iPhonie działają, gdy aplikacja jest dodana do ekranu głównego (Safari → Udostępnij → Do ekranu początkowego). Włączę je w kolejnym kroku, po podłączeniu synchronizacji.</p></div>
+    <div class="card"><div class="ct"><h2>Wyczyść ten telefon</h2></div>
+      <p class="small muted">Usuwa z tego telefonu wszystkie dane i wybór osoby. Dane w chmurze zostają. Żeby potem połączyć się jako ktoś, trzeba znać jego PIN.</p>
+      <button class="btn ghost block" style="margin-top:10px;color:var(--bad)" onClick=${() => confirm('Na pewno wyczyścić ten telefon? Jeśli nie ma synchronizacji, dane przepadną.') && wipeDevice()}>Wyczyść telefon</button></div>
   </div></div></${Page}>`;
 }

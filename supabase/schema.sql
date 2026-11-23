@@ -48,32 +48,67 @@ create policy "rows update" on rows for update using (house = my_house() and (ow
 drop policy if exists "members self" on members;
 create policy "members self" on members for select using (uid = auth.uid());
 
--- Dołączenie do domu kodem. Pierwszy telefon z nowym kodem zakłada dom.
--- Ochrona przed zgadywaniem: maks. 5 nieudanych prób na godzinę i maks. 6 telefonów w domu.
-create or replace function join_house(p_code text, p_person text) returns uuid
+create table if not exists person_pins (
+  house uuid not null references houses(id) on delete cascade,
+  person text not null,
+  pin_hash text not null,
+  primary key (house, person)
+);
+alter table person_pins enable row level security;  -- brak polityk = nikt nie czyta z aplikacji
+
+drop function if exists join_house(text, text);
+
+-- Dołączenie telefonu do domu: kod domu + PIN osoby.
+-- Pierwszy telefon z nowym kodem zakłada dom. Pierwszy telefon danej osoby ustawia jej PIN.
+-- Telefon już połączony jako ta sama osoba nie musi podawać PIN-u ponownie.
+-- Ochrona przed zgadywaniem: maks. 5 nieudanych prób na godzinę na telefon i 20 na dom.
+create or replace function join_house(p_code text, p_person text, p_pin text default null) returns jsonb
 language plpgsql security definer set search_path = public, extensions as $$
-declare h uuid; hash text := encode(digest(lower(trim(p_code)), 'sha256'), 'hex'); n int;
+declare
+  h uuid; hash text := encode(digest(lower(trim(p_code)), 'sha256'), 'hex');
+  n int; ph text; m members%rowtype;
 begin
-  if auth.uid() is null then raise exception 'Brak logowania'; end if;
-  if length(trim(p_code)) < 4 then raise exception 'Kod musi mieć co najmniej 4 znaki'; end if;
-  if (select count(*) from join_attempts where at > now() - interval '1 hour') > 30 then
-    raise exception 'Za dużo prób. Spróbuj za godzinę.'; end if;
+  if auth.uid() is null then return jsonb_build_object('error', 'Brak logowania'); end if;
+  if p_person not in ('julia', 'franek') then return jsonb_build_object('error', 'Nieznana osoba'); end if;
+  if (select count(*) from join_attempts where uid = auth.uid() and at > now() - interval '1 hour') >= 5
+     or (select count(*) from join_attempts where at > now() - interval '1 hour') >= 20 then
+    return jsonb_build_object('error', 'Za dużo błędnych prób. Spróbuj za godzinę.');
+  end if;
+
   select id into h from houses where code_hash = hash;
   if h is null then
     if exists (select 1 from houses) then
       insert into join_attempts(uid) values (auth.uid());
-      return null;  -- zły kod (bez wyjątku, żeby próba została zapisana)
+      return jsonb_build_object('error', 'Nie ma domu z takim kodem');
     end if;
-    insert into houses(code_hash) values (hash) returning id into h;   -- pierwszy i jedyny dom
+    if length(trim(p_code)) < 6 then return jsonb_build_object('error', 'Kod domu musi mieć co najmniej 6 znaków'); end if;
+    insert into houses(code_hash) values (hash) returning id into h;
   end if;
+
+  select * into m from members where uid = auth.uid();
+  if found and m.house = h and m.person = p_person then
+    return jsonb_build_object('house', h);            -- ten telefon jest już tą osobą
+  end if;
+
+  select pin_hash into ph from person_pins where house = h and person = p_person;
+  if ph is null then
+    if p_pin is null or p_pin !~ '^[0-9]{4,8}$' then
+      return jsonb_build_object('error', 'Ustaw PIN: 4 do 8 cyfr', 'needPin', true);
+    end if;
+    insert into person_pins(house, person, pin_hash) values (h, p_person, crypt(p_pin, gen_salt('bf')));
+  elsif p_pin is null or crypt(p_pin, ph) <> ph then
+    insert into join_attempts(uid) values (auth.uid());
+    return jsonb_build_object('error', case when p_pin is null then 'Podaj PIN' else 'Zły PIN' end, 'needPin', true);
+  end if;
+
   select count(*) into n from members where house = h and uid <> auth.uid();
-  if n >= 6 then raise exception 'Ten dom ma już komplet telefonów'; end if;
-  insert into members(uid, house, person) values (auth.uid(), h, coalesce(p_person, 'julia'))
+  if n >= 6 then return jsonb_build_object('error', 'Ten dom ma już komplet telefonów'); end if;
+  insert into members(uid, house, person) values (auth.uid(), h, p_person)
     on conflict (uid) do update set house = excluded.house, person = excluded.person;
-  return h;
+  return jsonb_build_object('house', h);
 end $$;
 
-grant execute on function join_house(text, text) to anon, authenticated;
+grant execute on function join_house(text, text, text) to anon, authenticated;
 
 -- Synchronizacja na żywo
 do $$ begin

@@ -21,8 +21,10 @@ Bez tego kroku dane są tylko na jednym telefonie.
 2. W projekcie: **Authentication → Sign In / Providers → Allow anonymous sign-ins**: włącz.
 3. **SQL Editor** → New query → wklej całą zawartość pliku `supabase/schema.sql` → **Run**.
 4. **Project Settings → API**: skopiuj **Project URL** i klucz **anon public** (albo „publishable key”).
-5. W aplikacji: **Więcej → Ustawienia → Synchronizacja**: wklej adres, klucz i wymyśl **kod domu** (np. `zielony-kubek-47` (wymyśl własny, nie podawaj go nikomu)) → **Połącz**.
-6. Na telefonie Franka: to samo, z tym samym kodem.
+5. W aplikacji: **Więcej → Ustawienia → Synchronizacja**: wklej adres i klucz, wymyśl **kod domu** (min. 6 znaków, np. `zielony-kubek-47`, wymyśl własny i nie podawaj go nikomu) i ustaw swój **PIN** (4–8 cyfr) → **Połącz**.
+6. Na telefonie Franka: ten sam adres, klucz i kod domu, a PIN Franek ustawia sam.
+
+Osobę na telefonie wybiera się raz. Żeby podłączyć telefon jako inną osobę, trzeba znać jej PIN. Sprawdza to serwer, więc nie da się tego obejść w telefonie. Franek powinien podłączyć swój telefon od razu, bo dopóki nie ustawi PIN-u, jego miejsce jest wolne.
 
 Klucz „anon” jest publiczny z założenia, więc można go trzymać w aplikacji. Dane chroni kod domu i reguły bazy: prywatne wydatki widzi tylko ich właściciel.
 

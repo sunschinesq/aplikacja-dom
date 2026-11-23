@@ -31,11 +31,12 @@ export async function connect(conf) {
     client = window.supabase.createClient(conf.url, conf.key, { auth: { persistSession: true, storageKey: 'naszdom:auth' } });
     let { data: { session } } = await client.auth.getSession();
     if (!session) { const r = await client.auth.signInAnonymously(); if (r.error) throw r.error; }
-    const { data: h, error } = await client.rpc('join_house', { p_code: conf.code, p_person: getMe() });
+    const { data: r, error } = await client.rpc('join_house', { p_code: conf.code, p_person: getMe(), p_pin: conf.pin || null });
     if (error) throw error;
-    if (!h) throw new Error('Nie ma domu z takim kodem');
-    house = h;
-    localStorage.setItem(CONF, JSON.stringify(conf));
+    if (r?.error) throw new Error(r.error);
+    house = r.house;
+    const { pin, ...keep } = conf;  // PIN-u nie zapisujemy w telefonie
+    localStorage.setItem(CONF, JSON.stringify(keep));
     // pobierz wszystko z serwera
     let from = 0; const all = [];
     for (;;) {
@@ -53,5 +54,5 @@ export async function connect(conf) {
   } catch (e) { setStatus('błąd: ' + (e.message || e)); client = null; }
 }
 
-export function disconnect() { localStorage.removeItem(CONF); client = null; house = null; setStatus('off'); }
+export async function disconnect() { try { await client?.removeAllChannels(); await client?.auth.signOut(); } catch {} localStorage.removeItem(CONF); client = null; house = null; setStatus('off'); }
 export const autoConnect = () => { const c = getConf(); if (c.url) connect(c); };

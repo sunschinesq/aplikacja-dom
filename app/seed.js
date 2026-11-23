@@ -36,7 +36,7 @@ export const CODES = {
 export const isWork = (s) => s && s.start;
 
 export function seed() {
-  const now = Date.now();
+  const now = 1; // bardzo stary znacznik: dane startowe nigdy nie nadpiszą prawdziwych zmian z drugiego telefonu
   const o = {};
   const add = (c, item) => { item.ts = now; (o[c] ||= {})[item.id] = item; };
   add('cfg', { id: 'people', v: { julia: { name: 'Julia', rate: 0 }, franek: { name: 'Franek', rate: 0 } } });

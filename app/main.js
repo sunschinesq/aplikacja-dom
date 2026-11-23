@@ -39,8 +39,8 @@ function Onboard() {
   return html`<div class="onboard">
     <p class="date">Witaj w aplikacji</p>
     <h1>Nasz dom</h1>
-    <p class="muted">Kto korzysta z tego telefonu? Od tego zależą kolory i to, co widzisz jako „moje”.</p>
-    ${['julia', 'franek'].map((p) => html`<button class="whobtn" onClick=${() => setMe(p)}><i class=${'dot ' + p} />${cfg('people', {})[p]?.name}</button>`)}
+    <p class="muted">Kto korzysta z tego telefonu? Od tego zależą kolory i to, co widzisz jako „moje”. Wybór jest na stałe. Po połączeniu z drugim telefonem chroni go Twój PIN.</p>
+    ${['julia', 'franek'].map((p) => html`<button class="whobtn" onClick=${() => confirm(`Ten telefon należy do: ${cfg('people', {})[p]?.name}?`) && setMe(p)}><i class=${'dot ' + p} />${cfg('people', {})[p]?.name}</button>`)}
   </div>`;
 }
 
