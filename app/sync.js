@@ -6,6 +6,8 @@ const CONF = 'naszdom:sync';
 let client = null, house = null, queue = [], status = 'off', listeners = new Set();
 const setStatus = (s) => { status = s; listeners.forEach((f) => f(s)); };
 export const syncStatus = () => status;
+export const getClient = () => client;
+export const getHouse = () => house;
 export const onStatus = (f) => { listeners.add(f); return () => listeners.delete(f); };
 export const getConf = () => { try { return JSON.parse(localStorage.getItem(CONF)) || {}; } catch { return {}; } };
 

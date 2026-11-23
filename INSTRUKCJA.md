@@ -28,6 +28,15 @@ Osobę na telefonie wybiera się raz. Żeby podłączyć telefon jako inną osob
 
 Klucz „anon” jest publiczny z założenia, więc można go trzymać w aplikacji. Dane chroni kod domu i reguły bazy: prywatne wydatki widzi tylko ich właściciel.
 
+## 4. Powiadomienia
+
+1. **SQL Editor** → New query → wklej `supabase/powiadomienia.sql` → **Run**.
+2. W tym samym miejscu uruchom (z adresem Twojego projektu):
+   `update push_config set fn_url = 'https://TWOJ-PROJEKT.supabase.co/functions/v1/notify';`
+3. **Edge Functions** → **Deploy a new function** → **Via Editor**. Nazwa: `notify`. Wklej całą zawartość `supabase/functions/notify/index.ts` → **Deploy**.
+4. W funkcji `notify` → **Details** (albo Settings): wyłącz **Verify JWT** / **Enforce JWT verification** → **Save**.
+5. W aplikacji (otwartej z ikonki na ekranie głównym): **Ustawienia → Powiadomienia → Włącz na tym telefonie** → Zezwól → **Wyślij próbne**.
+
 ## Kopia zapasowa
 
 Darmowy Supabase nie robi kopii. Raz na jakiś czas: **Ustawienia → Pobierz kopię** i wrzuć plik na Dysk Google.

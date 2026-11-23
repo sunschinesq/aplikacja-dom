@@ -3,6 +3,7 @@ import { html, Icon, Seg, Field, Page } from '../ui.js';
 import { getMe, person, personF, cfg, setCfg, exportJSON, replaceAll, refresh, wipeDevice } from '../store.js';
 import { connect, disconnect, getConf, syncStatus, onStatus } from '../sync.js';
 import { today } from '../util.js';
+import { pushSupported, needsHomeScreen, pushState, enablePush, disablePush, testPush } from '../push.js';
 
 export function Ustawienia() {
   const me = getMe();
@@ -38,10 +39,25 @@ export function Ustawienia() {
         <button class="btn primary block" disabled=${!f.url || !f.key || f.code.length < 6 || (st !== 'połączono' && f.pin.length < 4)} onClick=${() => connect(f)}>Połącz</button>
         ${c.url && html`<button class="btn ghost block" onClick=${() => { disconnect(); setF({ url: '', key: '', code: '' }); }}>Odłącz ten telefon</button>`}
       </div></div>
-    <div class="card"><div class="ct"><h2>Powiadomienia</h2></div>
-      <p class="small muted">Powiadomienia na iPhonie działają, gdy aplikacja jest dodana do ekranu głównego (Safari → Udostępnij → Do ekranu początkowego). Włączę je w kolejnym kroku, po podłączeniu synchronizacji.</p></div>
+    <${Powiadomienia} connected=${st === 'połączono'} />
     <div class="card"><div class="ct"><h2>Wyczyść ten telefon</h2></div>
       <p class="small muted">Usuwa z tego telefonu wszystkie dane i wybór osoby. Dane w chmurze zostają. Żeby potem połączyć się jako ktoś, trzeba znać jego PIN.</p>
       <button class="btn ghost block" style="margin-top:10px;color:var(--bad)" onClick=${() => confirm('Na pewno wyczyścić ten telefon? Jeśli nie ma synchronizacji, dane przepadną.') && wipeDevice()}>Wyczyść telefon</button></div>
   </div></div></${Page}>`;
+}
+
+function Powiadomienia({ connected }) {
+  const [state, setState] = useState('…'), [busy, setBusy] = useState(false), [msg, setMsg] = useState('');
+  const refresh = () => pushState().then(setState).catch(() => setState('off'));
+  useEffect(() => { refresh(); }, [connected]);
+  const run = (f, ok) => async () => { setBusy(true); setMsg(''); try { await f(); setMsg(ok); } catch (e) { setMsg('Błąd: ' + (e.message || e)); } setBusy(false); refresh(); };
+  return html`<div class="card"><div class="ct"><h2>Powiadomienia</h2>${state === 'on' && html`<span class="pill ok">włączone</span>`}</div>
+    <p class="small muted">Liścik, nowy wydatek i dopisany produkt od drugiej osoby. Rano: rachunki, gwarancje, kończące się produkty i Twoje obowiązki. Wieczorem: przypomnienie o Kicie.</p>
+    <div style="margin-top:10px">
+    ${!pushSupported() || needsHomeScreen() ? html`<p class="small">Najpierw dodaj aplikację do ekranu głównego: Safari → <b>Udostępnij</b> → <b>Do ekranu początkowego</b>, i otwórz ją z ikonki.</p>`
+      : !connected ? html`<p class="small">Najpierw połącz synchronizację powyżej.</p>`
+      : state === 'on' ? html`<div class="row-wrap"><button class="btn" disabled=${busy} onClick=${run(testPush, 'Wysłano. Powinno przyjść za chwilę.')}><${Icon} n="bell" s=${18} /> Wyślij próbne</button>
+          <button class="btn ghost" disabled=${busy} onClick=${run(disablePush, 'Wyłączono na tym telefonie.')}>Wyłącz</button></div>`
+      : html`<button class="btn primary block" disabled=${busy} onClick=${run(enablePush, 'Włączone! Wyślij próbne, żeby sprawdzić.')}><${Icon} n="bell" s=${18} /> Włącz na tym telefonie</button>`}
+    ${msg && html`<p class="small" style="margin-top:8px">${msg}</p>`}</div></div>`;
 }

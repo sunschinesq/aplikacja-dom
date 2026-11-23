@@ -37,6 +37,7 @@ export function Grafik() {
         ${p === 'franek' && html`<button class="btn sm ghost" style="margin-top:6px" onClick=${() => exportIcs(p, days)}><${Icon} n="download" s=${16} /> Do kalendarza (.ics)</button>`}
       </div>`; })}</div>
     <p class="small muted">Stuknij dzień, żeby wpisać lub zmienić godziny.</p>
+    <label class="btn ghost"><${Icon} n="upload" s=${18} /> Wczytaj grafik z pliku<input type="file" accept="application/json,.json" style="display:none" onChange=${importShifts} /></label>
     ${edit && html`<${DaySheet} d=${edit} ppl=${ppl} onClose=${() => setEdit(null)} />`}
   </${Page}>`;
 }
@@ -62,4 +63,20 @@ function exportIcs(p, days) {
     return ['BEGIN:VEVENT', `UID:${p}-${D}@naszdom`, `DTSTAMP:${stamp}`, `DTSTART;TZID=Europe/Warsaw:${D}T${a}00`, `DTEND;TZID=Europe/Warsaw:${D}T${b}00`, `SUMMARY:Praca ${person(p)}`, 'END:VEVENT'].join('\r\n'); });
   const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Nasz dom//PL', ...ev, 'END:VCALENDAR'].join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); a.download = `grafik-${person(p).toLowerCase()}-${days[0].slice(0, 7)}.ics`; a.click();
+}
+
+// Wczytanie grafików z pliku (np. nasz-dom-start.json): dopisuje dni, nie rusza innych danych
+async function importShifts(e) {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    const src = d.shifts || {}; let n = 0;
+    for (const p of ['julia', 'franek']) {
+      const days = src[p]?.days; if (!days) continue;
+      const cur = list('shifts').find((s) => s.id === p) || { id: p, days: {} };
+      put('shifts', { ...cur, days: { ...cur.days, ...days } }); n += Object.keys(days).length;
+    }
+    alert(n ? `Wczytano ${n} dni grafiku.` : 'W tym pliku nie ma grafiku.');
+  } catch { alert('To nie jest poprawny plik.'); }
 }
