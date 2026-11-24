@@ -1,0 +1,3 @@
+# Ustawienia funkcji dla Supabase CLI (automatyczne wgrywanie z GitHuba)
+[functions.notify]
+verify_jwt = false

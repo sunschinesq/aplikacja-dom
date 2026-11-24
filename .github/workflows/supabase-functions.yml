@@ -1,0 +1,22 @@
+# Automatyczne wgrywanie funkcji „notify” do Supabase po każdej zmianie w repozytorium.
+# Wymaga sekretów repozytorium: SUPABASE_ACCESS_TOKEN (sbp_…) i SUPABASE_PROJECT_REF.
+name: Wgraj funkcję notify do Supabase
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/functions/**', '.github/workflows/supabase-functions.yml']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.1
+      - name: Wgraj funkcję
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy notify --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --no-verify-jwt --use-api
