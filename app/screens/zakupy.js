@@ -171,7 +171,7 @@ function CardForm({ c, onClose }) {
   return html`<${Sheet} title=${c.id ? 'Karta ' + c.store : 'Nowa karta'} onClose=${onClose}><div class="form">
     <${Field} label="Sklep"><input value=${f.store} onInput=${(e) => setF({ ...f, store: e.target.value })} placeholder="np. Rossmann" /></${Field}>
     <${Field} label="Numer karty" hint="Przepisz cyfry spod kodu kreskowego na karcie (bez spacji)."><input inputmode="numeric" value=${f.number} onInput=${(e) => setF({ ...f, number: e.target.value.replace(/\s/g, '') })} /></${Field}>
-    ${f.number && html`<${Barcode} value=${f.number} />`}
+    ${f.number && html`<${Barcode} value=${cardKind(f) === 'pdf417' ? cardPayload(f) : f.number} kind=${cardKind(f)} />`}
     <${Field} label="Kolor"><input type="color" value=${color} onInput=${(e) => setF({ ...f, color: e.target.value })} style="height:48px;padding:4px" /></${Field}>
     <button class="btn primary block" disabled=${!f.store.trim()} onClick=${() => { put('cards', { ...c, store: f.store.trim(), number: f.number, color }); onClose(); }}>Zapisz</button>
     ${c.id && html`<button class="btn ghost block" onClick=${() => { if (confirm('Usunąć kartę?')) { remove('cards', c.id); onClose(); } }}>Usuń</button>`}</div></${Sheet}>`;
@@ -179,14 +179,30 @@ function CardForm({ c, onClose }) {
 
 const ean13ok = (s) => /^\d{13}$/.test(s) && (10 - [...s.slice(0, 12)].reduce((a, d, i) => a + d * (i % 2 ? 3 : 1), 0) % 10) % 10 === +s[12];
 const ean8ok = (s) => /^\d{8}$/.test(s) && (10 - [...s.slice(0, 7)].reduce((a, d, i) => a + d * (i % 2 ? 1 : 3), 0) % 10) % 10 === +s[7];
-export function Barcode({ value }) {
-  const ref = useRef();
+let bwip;
+const loadBwip = () => bwip || (bwip = new Promise((ok, no) => { if (window.bwipjs) return ok(window.bwipjs); const sc = document.createElement('script'); sc.src = './app/vendor/bwip-js-min.js'; sc.onload = () => ok(window.bwipjs); sc.onerror = no; document.head.appendChild(sc); }));
+
+// Biedronka w swojej aplikacji pokazuje kod PDF417 z treścią „1,NUMER,,,0,0”
+export const cardKind = (c) => c.kind || (/biedronka/i.test(c.store || '') && /^\d{13}$/.test(c.number || '') ? 'pdf417' : 'auto');
+export const cardPayload = (c) => c.payload || (/biedronka/i.test(c.store || '') ? `1,${c.number},,,0,0` : c.number);
+
+export function Barcode({ value, kind = 'auto' }) {
+  const ref = useRef(), box = useRef();
+  const [err, setErr] = useState('');
   useEffect(() => {
+    setErr('');
+    if (kind === 'pdf417') {
+      loadBwip().then((b) => { if (box.current) box.current.innerHTML = b.toSVG({ bcid: 'pdf417', text: value, scale: 3, padding: 4, columns: 3, rowmult: 5 }); })
+        .catch(() => setErr('Nie udało się narysować kodu. Sprawdź internet.'));
+      return;
+    }
     if (!window.JsBarcode || !ref.current) return;
     const format = ean13ok(value) ? 'EAN13' : ean8ok(value) ? 'EAN8' : 'CODE128';
     try { window.JsBarcode(ref.current, value, { format, displayValue: true, fontSize: 18, height: 110, width: format === 'CODE128' ? 2 : 2.6, margin: 6, background: '#ffffff' }); } catch { }
-  }, [value]);
-  return html`<div class="barcode"><svg ref=${ref} /></div>`;
+  }, [value, kind]);
+  return kind === 'pdf417'
+    ? html`<div key="pdf" class="barcode pdf" ref=${box}>${err && html`<p class="small" style="color:#B23A5B">${err}</p>`}</div>`
+    : html`<div key="lin" class="barcode"><svg ref=${ref} /></div>`;
 }
 
 export function useWakeLock() {
@@ -199,11 +215,15 @@ export function useWakeLock() {
 }
 
 export function KartaPage({ args }) {
-  const c = get('cards', args[0]); const [edit, setEdit] = useState(false);
+  const c = get('cards', args[0]); const [edit, setEdit] = useState(false), [alt, setAlt] = useState(false);
   useWakeLock();
   if (!c) return html`<${Page} title="Karta" back="#/zakupy/karty"><${Empty}>Nie ma takiej karty.</${Empty}></${Page}>`;
+  const kind = cardKind(c);
   return html`<${Page} title=${c.store} back="#/zakupy/karty" action=${html`<button class="btn sm" onClick=${() => setEdit(true)}>Edytuj</button>`}>
-    <div class="card" style="background:${c.color};border:none;padding:18px"><${Barcode} value=${c.number} /></div>
-    <p class="muted" style="text-align:center">Ekran nie zgaśnie, dopóki karta jest otwarta. Jeśli kasa nie czyta kodu, podgłośnij jasność.</p>
+    <div class="card" style="background:${c.color};border:none;padding:18px">
+      <${Barcode} value=${alt || kind !== 'pdf417' ? c.number : cardPayload(c)} kind=${alt ? 'auto' : kind} />
+      ${kind === 'pdf417' && !alt && html`<p style="text-align:center;color:#fff;font-family:ui-monospace,monospace;margin-top:10px;font-size:17px">${c.number}</p>`}</div>
+    ${kind === 'pdf417' && html`<${Seg} small value=${alt ? 'z' : 'a'} onChange=${(v) => setAlt(v === 'z')} options=${[['a', 'Jak w aplikacji sklepu'], ['z', 'Jak na plastikowej karcie']]} />`}
+    <p class="muted" style="text-align:center">Ekran nie zgaśnie, dopóki karta jest otwarta. Jeśli kasa nie czyta kodu, podgłośnij jasność${kind === 'pdf417' ? ' albo przełącz na drugi rodzaj kodu' : ''}.</p>
     ${edit && html`<${CardForm} c=${c} onClose=${() => setEdit(false)} />`}</${Page}>`;
 }
