@@ -10,6 +10,7 @@ export function Wiecej() {
   const mods = [
     ['grafik', 'cal', 'Grafik', 'zmiany, godziny, wypłata'], ['kita', 'cat', 'Kita', `${meals} posiłków dziś`],
     ['obowiazki', 'broom', 'Obowiązki', 'kto co i kiedy'], ['liscik', 'heart', 'Liściki', unread ? `${unread} nowy` : 'miłe słowo'],
+    ['skarbonka', 'star', 'Skarbonka', 'wspólne cele'], ['historia', 'clock', 'Historia', 'kto co zmienił'],
     ['prad', 'bolt', 'Prąd', 'rachunki co 2 miesiące'], ['gwarancje', 'shield', 'Gwarancje', w ? `${w} kończy się wkrótce` : 'paragony i terminy'],
     ['ustawienia', 'gear', 'Ustawienia', 'wygląd, synchronizacja, kopia'],
   ];

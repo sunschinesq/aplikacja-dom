@@ -6,6 +6,7 @@ import { CODES } from '../seed.js';
 import { sharedSpent, forecast, upcomingBills, choresToday, doneToday, catLog, shiftOf, classesOf, alerts, unreadNotes, debt } from '../logic.js';
 import { markChore, feedCat, CatEntrySheet } from './codzienne.js';
 import { payRecurring } from './wydatki.js';
+import { RecentByOther } from './skarbonka.js';
 
 const shiftTxt = (s) => (!s ? 'wolne' : s.start ? `${s.place ? s.place + ' ' : ''}${hm(s.start)}–${hm(s.end)}` : (CODES[s.code] || s.code).replace(/ \(.*\)/, ''));
 
@@ -63,6 +64,7 @@ export function Start() {
     ${al.length > 0 && html`<div class="card"><div class="ct"><h2>Uwaga</h2></div>
       ${al.map((a) => html`<a class="row" href=${a.kind === 'pantry' ? '#/zakupy/spizarnia' : '#/gwarancje'}><${Icon} n=${a.kind === 'pantry' ? 'box' : 'shield'} s=${20} />
         <span class="grow">${a.name}</span><span class="pill warn">${a.kind === 'warranty' ? (a.days < 0 ? 'skończyła się' : `gwarancja ${relDays(a.date)}`) : relDays(a.date)}</span></a>`)}</div>`}
+    <${RecentByOther} other=${other(me)} />
     <button class="card row" style="text-align:left;cursor:pointer" onClick=${() => setNote(true)}><${Icon} n="mail" /><span class="grow">Zostaw liścik dla ${personF(other(me), 'gen')}</span><${Icon} n="right" s=${18} /></button>
   </div>`;
 

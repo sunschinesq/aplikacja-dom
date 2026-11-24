@@ -10,7 +10,7 @@ export const feedCat = (type) => put('catlog', { type, day: today(), at: Date.no
 export function markChore(c) {
   if (doneToday(c)) { // cofnij
     const log = list('chorelog').filter((l) => l.choreId === c.id).sort((a, b) => b.at - a.at);
-    if (log[0]) remove('chorelog', log[0].id);
+    if (log[0]) remove('chorelog', log[0].id, { silent: true });
     const prev = log[1];
     patch('chores', c.id, { last: prev ? new Date(prev.at).toISOString() : null, lastBy: prev?.by || null, next: c.who === 'rot' ? c.lastBy || c.next : c.next });
     return;

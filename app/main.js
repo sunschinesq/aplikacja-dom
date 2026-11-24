@@ -1,7 +1,8 @@
 import { render } from './vendor/preact.module.js';
 import { useState, useEffect } from './vendor/hooks.module.js';
 import { html, Icon } from './ui.js';
-import { useDB, getMe, setMe, cfg, subscribe } from './store.js';
+import { useDB, getMe, setMe, cfg, subscribe, getUndo, doUndo } from './store.js';
+import { pruneLog } from './activity.js';
 import { pendingShopping } from './logic.js';
 import { autoConnect } from './sync.js';
 import { Start } from './screens/start.js';
@@ -13,6 +14,7 @@ import { Grafik } from './screens/grafik.js';
 import { Kita, Obowiazki, Liscik } from './screens/codzienne.js';
 import { Prad, Gwarancje } from './screens/dom.js';
 import { Ustawienia } from './screens/ustawienia.js';
+import { Skarbonka, Historia } from './screens/skarbonka.js';
 
 const applyTheme = () => {
   const r = document.documentElement;
@@ -26,7 +28,7 @@ subscribe(applyTheme); applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
 
 const TABS = [['', 'home', 'Start'], ['wydatki', 'wallet', 'Wydatki'], ['zakupy', 'cart', 'Zakupy'], ['kuchnia', 'fork', 'Kuchnia'], ['wiecej', 'more', 'Więcej']];
-const MORE = ['wiecej', 'grafik', 'kita', 'obowiazki', 'liscik', 'prad', 'gwarancje', 'ustawienia'];
+const MORE = ['wiecej', 'grafik', 'kita', 'obowiazki', 'liscik', 'prad', 'gwarancje', 'ustawienia', 'skarbonka', 'historia'];
 
 function useRoute() {
   const get = () => location.hash.replace(/^#\/?/, '').split('/');
@@ -51,7 +53,7 @@ function App() {
   const n = pendingShopping();
   const screens = {
     '': Start, wydatki: Wydatki, zakupy: Zakupy, kuchnia: Kuchnia, wiecej: Wiecej, grafik: Grafik, kita: Kita,
-    obowiazki: Obowiazki, liscik: Liscik, prad: Prad, gwarancje: Gwarancje, ustawienia: Ustawienia, karta: KartaPage, przepis: PrzepisPage,
+    obowiazki: Obowiazki, liscik: Liscik, prad: Prad, gwarancje: Gwarancje, ustawienia: Ustawienia, karta: KartaPage, przepis: PrzepisPage, skarbonka: Skarbonka, historia: Historia,
   };
   const S = screens[page] || Start;
   const active = MORE.includes(page) ? 'wiecej' : page === 'karta' ? 'zakupy' : page === 'przepis' ? 'kuchnia' : page;
@@ -63,9 +65,11 @@ function App() {
         <span class="lbl-m">${l}</span></a>`)}
     </nav>
     <main><${S} args=${rest} /></main>
+    ${getUndo() && html`<div class="toast" role="status">Usunięto <button class="undo" onClick=${doUndo}>Cofnij</button></div>`}
   </div>`;
 }
 
 render(html`<${App} />`, document.getElementById('app'));
 autoConnect();
+setTimeout(pruneLog, 4000);
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('./sw.js');

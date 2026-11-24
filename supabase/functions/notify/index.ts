@@ -260,12 +260,56 @@ async function handler(req: Request) {
     await db.from("calendar_feeds").update({ last_sync: new Date().toISOString(), last_info: info }).eq("house", f.house).eq("person", f.person).eq("kind", f.kind);
     return info;
   };
-  if (String(body.action).startsWith("feed_")) {
+  // kto dzwoni (zalogowany telefon z domu)
+  const member = async () => {
     const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer /, "");
     const { data: u } = await db.auth.getUser(jwt);
-    if (!u?.user) return json({ error: "Brak logowania" }, 401);
+    if (!u?.user) return null;
     const { data: m } = await db.from("members").select("house,person").eq("uid", u.user.id).maybeSingle();
-    if (!m) return json({ error: "Telefon nie jest połączony z domem" }, 403);
+    return m;
+  };
+  const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+  // ----- skróty Siri: klucz osoby i szybkie dodawanie -----
+  if (body.action === "sc_new" || body.action === "sc_revoke") {
+    const m = await member(); if (!m) return json({ error: "Telefon nie jest połączony z domem" }, 401);
+    await db.from("shortcut_tokens").delete().eq("house", m.house).eq("person", m.person);
+    if (body.action === "sc_revoke") return json({ ok: true });
+    const token = Array.from(crypto.getRandomValues(new Uint8Array(24))).map((b) => b.toString(16).padStart(2, "0")).join("");
+    await db.from("shortcut_tokens").insert({ token_hash: await sha(token), house: m.house, person: m.person });
+    return json({ token });
+  }
+  if (body.action === "quick") {
+    const { data: t } = await db.from("shortcut_tokens").select("house,person").eq("token_hash", await sha(String(body.token || ""))).maybeSingle();
+    if (!t) return json({ error: "Zły klucz skrótu" }, 401);
+    const now = Date.now(), day = todayIn(), id = () => now.toString(36) + Math.random().toString(36).slice(2, 7);
+    const ins = async (coll: string, data: any) => { const { error } = await db.from("rows").insert({ house: t.house, coll, id: data.id, data, ts: data.ts, owner: null }); if (error) throw error; };
+    const log = (text: string, kind: string) => ins("log", { id: id(), who: t.person, text, kind, at: now, day, ts: now });
+    const fem = FEM[t.person];
+    if (body.type === "expense") {
+      const text = String(body.text || "").trim();
+      const amount = parseFloat(String(body.amount ?? (text.match(/\d+(?:[.,]\d{1,2})?/) || [""])[0]).replace(",", ".")) || 0;
+      if (!amount) return json({ error: "Brak kwoty" }, 400);
+      const desc = (String(body.desc ?? text.replace(/\d+(?:[.,]\d{1,2})?\s*(złotych|zł|zl|pln)?/i, "")).trim() || "Wydatek").replace(/^./, (c) => c.toUpperCase());
+      const cat = /biedronk|lidl|żabk|zabk|kaufland|auchan|carrefour|dino|netto/i.test(desc) ? "spoz" : /rossmann|action|pepco|hebe/i.test(desc) ? "chemia" : /orlen|bp|shell|circle|paliw/i.test(desc) ? "transport" : "inne";
+      const account = body.account === "moje" ? t.person : "wspolne";
+      const e = { id: id(), amount, desc, date: day, cat, account, by: t.person, ts: now, ...(account !== "wspolne" ? { split: { julia: 0.5, franek: 0.5 } } : {}) };
+      await ins("expenses", e); await log(`${fem ? "dodała" : "dodał"} wydatek: ${desc} ${zl(amount)}`, "wydatki");
+      return json({ ok: true, text: `Dodano: ${desc} ${zl(amount)}` });
+    }
+    // lista zakupów: „mleko, chleb i masło” → 3 produkty na liście Ogólnej
+    const names = String(body.text || "").split(/,|\si\s|\soraz\s|\n/i).map((s) => s.trim().replace(/\.$/, "")).filter(Boolean).map((s) => s[0].toUpperCase() + s.slice(1));
+    if (!names.length) return json({ error: "Nic nie podano" }, 400);
+    const { data: lists } = await db.from("rows").select("data").eq("house", t.house).eq("coll", "lists");
+    const og = (lists || []).map((r) => r.data).find((l: any) => !l.del && l.name === "Ogólna");
+    for (const name of names) await ins("shopping", { id: id(), name, qty: 0, unit: "szt", listId: og?.id, done: false, by: t.person, ts: now });
+    await log(`${fem ? "dopisała" : "dopisał"} do listy: ${names.join(", ")}`, "zakupy");
+    return json({ ok: true, text: `Dopisano: ${names.join(", ")}` });
+  }
+
+  if (String(body.action).startsWith("feed_")) {
+    const m = await member();
+    if (!m) return json({ error: "Telefon nie jest połączony z domem" }, 401);
     const key = { house: m.house, person: m.person };
     if (body.action === "feed_set") {
       const kind = body.kind === "studia" ? "studia" : "praca", url = String(body.url || "").trim();

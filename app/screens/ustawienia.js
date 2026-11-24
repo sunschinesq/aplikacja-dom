@@ -3,7 +3,7 @@ import { html, Icon, Seg, Field, Page } from '../ui.js';
 import { getMe, person, personF, cfg, setCfg, exportJSON, replaceAll, refresh, wipeDevice } from '../store.js';
 import { connect, disconnect, getConf, syncStatus, onStatus } from '../sync.js';
 import { today } from '../util.js';
-import { pushSupported, needsHomeScreen, pushState, enablePush, disablePush, testPush } from '../push.js';
+import { pushSupported, needsHomeScreen, pushState, enablePush, disablePush, testPush, callFn } from '../push.js';
 
 export function Ustawienia() {
   const me = getMe();
@@ -40,6 +40,7 @@ export function Ustawienia() {
         ${c.url && html`<button class="btn ghost block" onClick=${() => { disconnect(); setF({ url: '', key: '', code: '' }); }}>Odłącz ten telefon</button>`}
       </div></div>
     <${Powiadomienia} connected=${st === 'połączono'} />
+    <${Skroty} connected=${st === 'połączono'} url=${c.url} />
     <div class="card"><div class="ct"><h2>Wyczyść ten telefon</h2></div>
       <p class="small muted">Usuwa z tego telefonu wszystkie dane i wybór osoby. Dane w chmurze zostają. Żeby potem połączyć się jako ktoś, trzeba znać jego PIN.</p>
       <button class="btn ghost block" style="margin-top:10px;color:var(--bad)" onClick=${() => confirm('Na pewno wyczyścić ten telefon? Jeśli nie ma synchronizacji, dane przepadną.') && wipeDevice()}>Wyczyść telefon</button></div>
@@ -60,4 +61,36 @@ function Powiadomienia({ connected }) {
           <button class="btn ghost" disabled=${busy} onClick=${run(disablePush, 'Wyłączono na tym telefonie.')}>Wyłącz</button></div>`
       : html`<button class="btn primary block" disabled=${busy} onClick=${run(enablePush, 'Włączone! Wyślij próbne, żeby sprawdzić.')}><${Icon} n="bell" s=${18} /> Włącz na tym telefonie</button>`}
     ${msg && html`<p class="small" style="margin-top:8px">${msg}</p>`}</div></div>`;
+}
+
+// Skróty Siri: osobisty klucz + instrukcja budowy skrótu w aplikacji Skróty
+function Skroty({ connected, url }) {
+  const [token, setToken] = useState(''), [busy, setBusy] = useState(false), [msg, setMsg] = useState('');
+  const fnUrl = (url || '').replace(/\/+$/, '') + '/functions/v1/notify';
+  const run = async (action) => { setBusy(true); setMsg(''); try { const r = await callFn({ action }); setToken(r.token || ''); if (!r.token) setMsg('Skróty wyłączone. Stare skróty przestały działać.'); } catch (e) { setMsg('Błąd: ' + e.message); } setBusy(false); };
+  const copy = (t) => navigator.clipboard?.writeText(t).then(() => setMsg('Skopiowano ✓'));
+  if (!connected) return null;
+  return html`<div class="card"><div class="ct"><h2>Siri i skróty</h2></div>
+    <p class="small muted">„Hej Siri, dopisz do listy” → „mleko, chleb i masło”. Albo „Hej Siri, wydatek” → „23,50 Żabka” (konto wspólne). Działa nawet bez otwierania aplikacji.</p>
+    ${!token ? html`<div class="row-wrap" style="margin-top:10px"><button class="btn primary" disabled=${busy} onClick=${() => run('sc_new')}>${busy ? '…' : 'Utwórz klucz skrótu'}</button>
+        <button class="btn ghost sm" disabled=${busy} onClick=${() => confirm('Wyłączyć wszystkie Twoje skróty?') && run('sc_revoke')}>Wyłącz skróty</button></div>
+      <p class="small muted" style="margin-top:6px">Nowy klucz unieważnia poprzedni, wtedy podmień go w skrótach.</p>`
+    : html`<div class="form" style="margin-top:10px">
+      <p class="small"><b>Twój klucz</b> (pokazuję tylko raz, nikomu go nie dawaj):</p>
+      <div class="inline"><input readonly value=${token} onFocus=${(e) => e.target.select()} /><button class="btn sm" onClick=${() => copy(token)}>Kopiuj</button></div>
+      <p class="small"><b>Adres</b>:</p>
+      <div class="inline"><input readonly value=${fnUrl} onFocus=${(e) => e.target.select()} /><button class="btn sm" onClick=${() => copy(fnUrl)}>Kopiuj</button></div>
+      <div class="small" style="line-height:1.55">
+        <b>Skrót „Dopisz do listy”</b> (aplikacja Skróty → +):
+        <ol style="padding-left:20px;margin:4px 0 10px">
+          <li><b>Zapytaj o dane wejściowe</b>: Tekst, pytanie „Co dopisać?”.</li>
+          <li><b>Pobierz zawartość URL</b>: wklej <i>Adres</i>. Rozwiń → Metoda <b>POST</b>, Treść żądania <b>JSON</b>, dodaj pola (Tekst):
+            <code>action</code> = <code>quick</code>, <code>type</code> = <code>list</code>, <code>token</code> = <i>Twój klucz</i>, <code>text</code> = <i>Podane dane</i>.</li>
+          <li><b>Pobierz wartość słownika</b> „text” → <b>Pokaż powiadomienie</b> z tą wartością (opcjonalnie).</li>
+          <li>Nazwij skrót <b>Dopisz do listy</b>. To jest też komenda dla Siri.</li>
+        </ol>
+        <b>Skrót „Wydatek”</b>: tak samo, ale pytanie „Ile i gdzie?”, <code>type</code> = <code>expense</code>. Dodaj pole <code>account</code> = <code>moje</code>, jeśli to wydatek z Twojego konta (dzielony po połowie).
+      </div>
+      <button class="btn ghost sm" onClick=${() => setToken('')}>Gotowe</button></div>`}
+    ${msg && html`<p class="small" style="margin-top:6px">${msg}</p>`}</div>`;
 }

@@ -4,6 +4,7 @@ import { list, put, patch, remove, getMe, get } from '../store.js';
 import { num, today, relDays, diffDays, groupBy, norm } from '../util.js';
 import { PLACES, CARD_COLORS } from '../seed.js';
 import { sectionOf, SECTION_ORDER, placeOf, fmtQty } from '../logic.js';
+import { logText } from '../activity.js';
 
 const UNITS = ['szt', 'kg', 'g', 'dag', 'l', 'ml', 'op.'];
 const blix = (name) => `https://blix.pl/szukaj/?szukaj=${encodeURIComponent(name)}`;
@@ -11,6 +12,9 @@ const blix = (name) => `https://blix.pl/szukaj/?szukaj=${encodeURIComponent(name
 export function addToList(name, qty, unit, listId) {
   const lid = listId || list('lists').find((l) => l.name === 'Ogólna')?.id;
   const ex = list('shopping').find((s) => !s.done && norm(s.name) === norm(name) && s.listId === lid);
+  // zapamiętaj, co kupujecie (podpowiedzi i „często kupowane”)
+  const fid = norm(name), fr = get('freq', fid);
+  put('freq', { id: fid, name, unit: unit || fr?.unit || 'szt', qty: num(qty) || fr?.qty || 0, count: (fr?.count || 0) + 1, last: today() }, { silent: true });
   if (ex) { if (qty && ex.unit === unit) patch('shopping', ex.id, { qty: num(ex.qty) + num(qty) }); return; }
   put('shopping', { name, qty: num(qty) || 0, unit: unit || 'szt', listId: lid, section: sectionOf(name), done: false, by: getMe() });
 }
@@ -45,7 +49,8 @@ function Lista() {
       <select value=${f.unit} onChange=${(e) => setF({ ...f, unit: e.target.value })}>${UNITS.map((u) => html`<option>${u}</option>`)}</select>
       <button class="btn" aria-label="Dodaj"><${Icon} n="plus" /></button>
     </form>
-    ${SECTION_ORDER.map((sec) => { const its = todo.filter((i) => (i.section || 'Inne') === sec); if (!its.length) return null;
+    <${Suggest} q=${f.name} onPick=${(s) => { addToList(s.name, f.qty || s.qty, f.qty ? f.unit : s.unit, target); setF({ name: '', qty: '', unit: f.unit }); }} />
+    ${SECTION_ORDER.map((sec) => { const its = todo.filter((i) => (i.section || sectionOf(i.name)) === sec); if (!its.length) return null;
       return html`<div><h3>${sec}</h3><div class="card" style="padding-top:2px;padding-bottom:2px">${its.map((i) => html`<${ShopRow} i=${i} lname=${sel === 'all' && lname(i.listId)} onEdit=${() => setEdit(i)} />`)}</div></div>`; })}
     ${!todo.length && html`<${Empty}>${done.length ? 'Wszystko w koszyku!' : 'Lista jest pusta.'}</${Empty}>`}
     ${done.length > 0 && html`<div><h3>W koszyku · ${done.length}</h3><div class="card" style="padding-top:2px;padding-bottom:2px">${done.map((i) => html`<${ShopRow} i=${i} onEdit=${() => setEdit(i)} />`)}</div>
@@ -54,6 +59,17 @@ function Lista() {
     ${finish && html`<${FinishSheet} items=${done} onClose=${() => setFinish(false)} />`}
     ${newList && html`<${ListsSheet} lists=${lists} onClose=${() => setNewList(false)} />`}
   </div>`;
+}
+
+// Podpowiedzi z historii zakupów: przy pisaniu – pasujące, przy pustym polu – „często kupowane”
+function Suggest({ q, onPick }) {
+  const onList = new Set(list('shopping').filter((s) => !s.done).map((s) => norm(s.name)));
+  const all = list('freq').filter((x) => !onList.has(x.id)).sort((a, b) => b.count - a.count || (b.last || '').localeCompare(a.last || ''));
+  const n = norm(q);
+  const items = n ? all.filter((x) => x.id.includes(n) && x.id !== n).slice(0, 6) : all.filter((x) => x.count >= 2).slice(0, 10);
+  if (!items.length) return null;
+  return html`<div>${!n && html`<h3 style="margin-top:4px">Często kupowane</h3>`}
+    <div class="scroll-x"><div class="chips">${items.map((x) => html`<button class="chip" onClick=${() => onPick(x)}>+ ${x.name}${x.qty ? html` <span class="muted small">${fmtQty(x.qty, x.unit)}</span>` : ''}</button>`)}</div></div></div>`;
 }
 
 function ShopRow({ i, lname, onEdit }) {
@@ -85,11 +101,12 @@ function FinishSheet({ items, onClose }) {
     for (const r of rows) {
       if (r.on) {
         const ex = list('pantry').find((p) => norm(p.name) === norm(r.i.name) && p.unit === r.i.unit && p.place === r.place);
-        if (ex) patch('pantry', ex.id, { qty: num(ex.qty) + num(r.i.qty), expires: r.exp || ex.expires });
-        else put('pantry', { name: r.i.name, qty: r.i.qty, unit: r.i.unit, place: r.place, expires: r.exp || '' });
+        if (ex) patch('pantry', ex.id, { qty: num(ex.qty) + num(r.i.qty), expires: r.exp || ex.expires }, { silent: true });
+        else put('pantry', { name: r.i.name, qty: r.i.qty, unit: r.i.unit, place: r.place, expires: r.exp || '' }, { silent: true });
       }
-      remove('shopping', r.i.id);
+      remove('shopping', r.i.id, { silent: true });
     }
+    logText(`${getMe() === 'julia' ? 'skończyła' : 'skończył'} zakupy (${rows.length} prod.)`, 'zakupy');
     onClose();
   };
   return html`<${Sheet} title="Do spiżarni" onClose=${onClose}><div class="form">

@@ -27,14 +27,33 @@ const visible = (x) => !x.del && (!x.owner || x.owner === getMe());
 export const list = (c) => Object.values(db[c] || {}).filter(visible);
 export const get = (c, id) => { const x = db[c]?.[id]; return x && visible(x) ? x : undefined; };
 
-export function put(c, item) {
+let logHook = null;
+export const onLog = (f) => { logHook = f; };
+
+// opts.silent: bez wpisu w historii i bez „Cofnij” (np. hurtowe operacje)
+export function put(c, item, opts = {}) {
+  const prev = db[c]?.[item.id];
   const it = { ...item, id: item.id || uid(), ts: Date.now() };
   (db[c] ||= {})[it.id] = it;
   save(); emit(); pushHook?.(c, it);
+  if (!opts.silent && c !== 'log') try { logHook?.(c, it, prev); } catch (e) { console.warn(e); }
   return it;
 }
-export const patch = (c, id, p) => put(c, { ...(db[c]?.[id] || { id }), ...p });
-export const remove = (c, id) => put(c, { id, del: true, owner: db[c]?.[id]?.owner });
+export const patch = (c, id, p, opts) => put(c, { ...(db[c]?.[id] || { id }), ...p }, opts);
+export function remove(c, id, opts = {}) {
+  const prev = db[c]?.[id];
+  const r = put(c, { id, del: true, owner: prev?.owner }, opts);
+  if (!opts.silent && prev && !prev.del) setUndo({ c, prev });
+  return r;
+}
+
+// „Cofnij” po usunięciu (5 sekund)
+let undo = null;
+export const getUndo = () => undo;
+function setUndo(u) { undo = { ...u, at: Date.now() }; emit(); setTimeout(() => { if (undo && Date.now() - undo.at >= 5000) { undo = null; emit(); } }, 5100); }
+let undoHook = null;
+export const onUndo = (f) => { undoHook = f; };
+export function doUndo() { if (!undo) return; const { c, prev } = undo; undo = null; put(c, { ...prev, del: false }, { silent: true }); undoHook?.(); }
 
 export const cfg = (k, def) => db.cfg?.[k]?.v ?? def;
 export const setCfg = (k, v) => put('cfg', { id: k, v });
