@@ -213,7 +213,11 @@ async function handler(req: Request) {
     vapid = (await db.from("push_config").select("vapid").eq("id", 1).single()).data!.vapid;
   }
   const keys = await webpush.importVapidKeys(vapid, { extractable: false });
-  const body = await req.json().catch(() => ({}));
+  const raw = await req.json().catch(() => ({}));
+  // tolerancja na spacje i wielkie litery dodawane przez klawiaturę iPhone'a (np. „quick ”)
+  const body: Record<string, any> = {};
+  for (const [k, v] of Object.entries(raw || {})) { const key = k.trim().toLowerCase(); body[key] = typeof v === "string" && key !== "text" ? v.trim() : v; }
+  for (const k of ["action", "type", "account"]) if (typeof body[k] === "string") body[k] = body[k].toLowerCase();
 
   if (body.action === "key") return json({ key: await webpush.exportApplicationServerKey(keys) });
 
