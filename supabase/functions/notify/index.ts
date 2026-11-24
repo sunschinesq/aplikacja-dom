@@ -34,9 +34,15 @@ const cfg = (rows: Row[], id: string, def: any) => rows.find((r) => r.coll === "
 const of = (rows: Row[], c: string) => rows.filter((r) => r.coll === c && !r.data.del).map((r) => r.data);
 
 export function choreDue(c: any, t: string) {
-  if (!c.last) return t;
-  const last = String(c.last).slice(0, 10);
-  return c.snooze && c.snooze > c.last ? c.snooze : addDays(last, c.every || 1);
+  const last = c.last ? String(c.last).slice(0, 10) : null;
+  if (c.snooze && (!last || c.snooze > last)) return c.snooze;
+  if (c.days?.length) {
+    let d = last ? addDays(last, 1) : t;
+    if (d < addDays(t, -7)) d = addDays(t, -7);
+    for (let i = 0; i < 8; i++, d = addDays(d, 1)) if (c.days.includes(new Date(parse(d)).getUTCDay())) return d;
+  }
+  if (!last) return t;
+  return addDays(last, c.every || 1);
 }
 
 // Poranne podsumowanie: osobna wiadomość dla każdej osoby (albo null, gdy nic)

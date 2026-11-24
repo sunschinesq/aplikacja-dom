@@ -52,7 +52,20 @@ export function upcomingBills(days = 7) {
 }
 
 // Obowiązki
-export function choreDue(c) { if (!c.last) return today(); return c.snooze && c.snooze > c.last ? c.snooze : addDays(c.last.slice(0, 10), c.every); }
+// Termin obowiązku: „co X dni” albo „w wybrane dni tygodnia” (c.days = numery dni jak w getDay: 0 = niedziela)
+export function choreDue(c, t = today()) {
+  const last = c.last ? c.last.slice(0, 10) : null;
+  if (c.snooze && (!last || c.snooze > last)) return c.snooze;
+  if (c.days?.length) {
+    let d = last ? addDays(last, 1) : t;
+    if (d < addDays(t, -7)) d = addDays(t, -7); // zaległość najwyżej z ostatniego tygodnia
+    for (let i = 0; i < 8; i++, d = addDays(d, 1)) if (c.days.includes(parse(d).getDay())) return d;
+  }
+  if (!last) return t;
+  return addDays(last, c.every || 1);
+}
+const WD_NAMES = ['nd', 'pn', 'wt', 'śr', 'cz', 'pt', 'sb'];
+export const choreFreq = (c) => (c.days?.length ? [1, 2, 3, 4, 5, 6, 0].filter((d) => c.days.includes(d)).map((d) => WD_NAMES[d]).join(', ') : `co ${c.every === 1 ? 'dzień' : (c.every || 1) + ' dni'}`);
 export const choresToday = () => list('chores').filter((c) => choreDue(c) <= today() || (c.last && c.last.slice(0, 10) === today()));
 export const doneToday = (c) => c.last && c.last.slice(0, 10) === today();
 

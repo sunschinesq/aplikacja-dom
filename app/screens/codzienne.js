@@ -2,7 +2,7 @@ import { useState } from '../vendor/hooks.module.js';
 import { html, Icon, Sheet, Seg, Field, Dot, Empty, Page } from '../ui.js';
 import { list, put, patch, remove, getMe, person, personF, cfg, setCfg, other } from '../store.js';
 import { today, addDays, time, shortDate, longDate, relDays, monthOf, groupBy, diffDays } from '../util.js';
-import { catLog, choreDue, doneToday } from '../logic.js';
+import { catLog, choreDue, choreFreq, doneToday } from '../logic.js';
 import { NoteSheet } from './start.js';
 
 export const feedCat = (type) => put('catlog', { type, day: today(), at: Date.now(), by: getMe() });
@@ -77,7 +77,7 @@ export function Obowiazki() {
       return html`<div class="row">
         <button class=${'check ' + (done ? 'on ' + c.lastBy : '')} onClick=${() => markChore(c)} aria-label="Zrobione">${done && html`<${Icon} n="check" s=${16} />`}</button>
         <span class="grow click" onClick=${() => setEdit(c)}><span class=${'t ' + (done ? 'done-txt' : '')}>${c.name}</span>
-          <span class="s">co ${c.every === 1 ? 'dzień' : c.every + ' dni'} · ${c.who === 'rot' ? 'na zmianę, teraz ' + person(c.next) : person(c.who)}${c.last ? ' · ostatnio ' + (c.last.slice(0, 10) === t ? 'dziś' : shortDate(c.last.slice(0, 10))) : ''}</span></span>
+          <span class="s">${choreFreq(c)} · ${c.who === 'rot' ? 'na zmianę, teraz ' + person(c.next) : person(c.who)}${c.last ? ' · ostatnio ' + (c.last.slice(0, 10) === t ? 'dziś' : shortDate(c.last.slice(0, 10))) : ''}</span></span>
         ${!done && html`<span class=${'pill ' + (late ? 'warn' : due === t ? 'ok' : '')}>${late ? `zaległe ${-diffDays(t, due)} d` : due === t ? 'dziś' : relDays(due)}</span>`}
         <${Dot} p=${done ? c.lastBy : c.next} /></div>`; })}
       ${!cs.length && html`<${Empty}>Dodaj stałe obowiązki domowe.</${Empty}>`}</div>
@@ -87,16 +87,21 @@ export function Obowiazki() {
 }
 
 function ChoreForm({ c, onClose }) {
-  const [f, setF] = useState({ name: c.name || '', every: c.every || 7, who: c.who || 'rot', next: c.next || getMe() });
+  const [f, setF] = useState({ name: c.name || '', every: c.every || 7, days: c.days || [], mode: c.days?.length ? 'week' : 'every', who: c.who || 'rot', next: c.next || getMe() });
   return html`<${Sheet} title=${c.id ? c.name : 'Nowy obowiązek'} onClose=${onClose}><div class="form">
     <${Field} label="Nazwa"><input value=${f.name} onInput=${(e) => setF({ ...f, name: e.target.value })} autofocus=${!c.id} /></${Field}>
-    <${Field} label="Co ile dni"><input type="number" min="1" value=${f.every} onInput=${(e) => setF({ ...f, every: +e.target.value || 1 })} /></${Field}>
+    <${Field} label="Kiedy"><${Seg} small value=${f.mode} onChange=${(v) => setF({ ...f, mode: v })} options=${[['every', 'Co kilka dni'], ['week', 'W wybrane dni']]} /></${Field}>
+    ${f.mode === 'every' ? html`<${Field} label="Co ile dni"><input type="number" min="1" value=${f.every} onInput=${(e) => setF({ ...f, every: +e.target.value || 1 })} /></${Field}>`
+      : html`<${Field} label="Dni tygodnia" hint="Np. odkurzanie w poniedziałki i czwartki."><div class="chips">${[[1, 'Pn'], [2, 'Wt'], [3, 'Śr'], [4, 'Cz'], [5, 'Pt'], [6, 'Sb'], [0, 'Nd']].map(([d, l]) =>
+          html`<button type="button" class=${'chip' + (f.days.includes(d) ? ' on' : '')} style="min-width:46px;justify-content:center" onClick=${() => setF({ ...f, days: f.days.includes(d) ? f.days.filter((x) => x !== d) : [...f.days, d] })}>${l}</button>`)}</div></${Field}>`}
     <${Field} label="Kto"><${Seg} value=${f.who} onChange=${(v) => setF({ ...f, who: v, next: v === 'rot' ? f.next : v })} options=${[['rot', 'Na zmianę'], ['julia', person('julia')], ['franek', person('franek')]]} /></${Field}>
     ${f.who === 'rot' && html`<${Field} label="Teraz kolej"><${Seg} small value=${f.next} onChange=${(v) => setF({ ...f, next: v })} options=${[['julia', person('julia')], ['franek', person('franek')]]} /></${Field}>`}
-    <button class="btn primary block" disabled=${!f.name.trim()} onClick=${() => { put('chores', { ...c, ...f, name: f.name.trim() }); onClose(); }}>Zapisz</button>
+    <button class="btn primary block" disabled=${!f.name.trim() || (f.mode === 'week' && !f.days.length)} onClick=${() => {
+      const { mode, ...rest } = f;
+      put('chores', { ...c, ...rest, name: f.name.trim(), days: mode === 'week' ? f.days : [], every: mode === 'week' ? 7 : f.every, snooze: null }); onClose(); }}>Zapisz</button>
     ${c.id && html`<div class="row-wrap">
       <button class="btn ghost" style="flex:1" onClick=${() => { patch('chores', c.id, { next: other(c.next), who: c.who === 'rot' ? 'rot' : other(c.who) }); onClose(); }}><${Icon} n="swap" s=${18} /> Przekaż</button>
-      <button class="btn ghost" style="flex:1" onClick=${() => { patch('chores', c.id, { snooze: addDays(today(), 1), last: c.last || addDays(today(), -c.every) }); onClose(); }}>Na jutro</button></div>
+      <button class="btn ghost" style="flex:1" onClick=${() => { patch('chores', c.id, { snooze: addDays(today(), 1) }); onClose(); }}>Na jutro</button></div>
       <button class="btn ghost block" onClick=${() => { if (confirm('Usunąć obowiązek?')) { remove('chores', c.id); onClose(); } }}><${Icon} n="trash" s=${18} /> Usuń</button>`}
   </div></${Sheet}>`;
 }
