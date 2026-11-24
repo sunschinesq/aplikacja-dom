@@ -239,3 +239,4 @@ nav.tabs .pillbg .lbl { display:none; }
 .ct .pill { white-space:normal; text-align:right; max-width:60%; }
 .cal .sh.zaj { background:var(--s2); color:var(--muted); font-weight:500; }
 .barcode.pdf { padding:14px; } .barcode.pdf svg { width:100%; height:auto; }
+.barcode.qr svg { width:min(260px, 100%); }
