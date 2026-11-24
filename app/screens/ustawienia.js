@@ -53,7 +53,7 @@ function Powiadomienia({ connected }) {
   useEffect(() => { refresh(); }, [connected]);
   const run = (f, ok) => async () => { setBusy(true); setMsg(''); try { await f(); setMsg(ok); } catch (e) { setMsg('Błąd: ' + (e.message || e)); } setBusy(false); refresh(); };
   return html`<div class="card"><div class="ct"><h2>Powiadomienia</h2>${state === 'on' && html`<span class="pill ok">włączone</span>`}</div>
-    <p class="small muted">Liścik, nowy wydatek i dopisany produkt od drugiej osoby. Rano: rachunki, gwarancje, kończące się produkty i Twoje obowiązki. Wieczorem: przypomnienie o Kicie.</p>
+    <p class="small muted">Liścik, nowy wydatek i dopisany produkt od drugiej osoby. O 7:30: Twoje obowiązki na dziś, rachunki, gwarancje i kończące się produkty. O 19:30: przypomnienie o Kicie.</p>
     <div style="margin-top:10px">
     ${!pushSupported() || needsHomeScreen() ? html`<p class="small">Najpierw dodaj aplikację do ekranu głównego: Safari → <b>Udostępnij</b> → <b>Do ekranu początkowego</b>, i otwórz ją z ikonki.</p>`
       : !connected ? html`<p class="small">Najpierw połącz synchronizację powyżej.</p>`

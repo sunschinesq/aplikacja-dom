@@ -60,6 +60,6 @@ drop trigger if exists rows_notify on rows;
 create trigger rows_notify after insert on rows for each row
   when (new.coll in ('notes', 'expenses', 'shopping')) execute function rows_notify();
 
--- Harmonogram (czas UTC): rano ok. 8:30, wieczorem ok. 19:30 czasu polskiego (zimą)
-select cron.schedule('naszdom-rano', '30 7 * * *', $$ select notify_call('{"action":"daily"}'::jsonb) $$);
-select cron.schedule('naszdom-wieczor', '30 18 * * *', $$ select notify_call('{"action":"evening"}'::jsonb) $$);
+-- Harmonogram (UTC): rano 7:30 i wieczorem 19:30 czasu polskiego; funkcja sama odrzuca złą porę (zmiana czasu)
+select cron.schedule('naszdom-rano', '30 5,6 * * *', $$ select notify_call('{"action":"daily"}'::jsonb) $$);
+select cron.schedule('naszdom-wieczor', '30 17,18 * * *', $$ select notify_call('{"action":"evening"}'::jsonb) $$);

@@ -369,6 +369,10 @@ async function handler(req: Request) {
   }
 
   if (body.action === "daily" || body.action === "evening") {
+    // harmonogram w bazie działa w UTC, więc odpala się o dwóch porach; wysyłamy tylko o właściwej godzinie w Polsce
+    const want = body.action === "daily" ? 7 : 19;
+    const hour = +new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", hour12: false }).format(new Date());
+    if (!body.force && hour !== want) return json({ skipped: `teraz ${hour}:xx w Polsce` });
     const { data: houses } = await db.from("houses").select("id");
     const t = todayIn(); let sent = 0;
     for (const h of houses || []) {
